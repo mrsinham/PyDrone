@@ -1,8 +1,34 @@
 import tornado.ioloop, os
 import tornado.web
+import argparse, yaml
 from tornado import httpclient
 from mako import exceptions
 from mako.lookup import TemplateLookup
+
+
+
+
+############ Configuration parsing
+oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
+oParser.add_argument('--conf', help='Configuraton file path')
+oArguments = oParser.parse_args()
+
+if oArguments.conf == None:
+	oParser.print_help()
+	exit(1)
+if False == os.path.isfile(oArguments.conf):
+	print "Cant find the configuration file\n"
+	oParser.print_help()
+	exit(1)
+else:
+	sConfigurationFile = oArguments.conf
+
+oStream = file(sConfigurationFile, 'r')
+oConfiguration = yaml.load(oStream)
+print(vars(oConfiguration))
+exit()
+
+############" Start of web server
 
 root = os.path.dirname(__file__)
 template_root = os.path.join(root, 'templates')
