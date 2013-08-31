@@ -1,6 +1,7 @@
 import tornado.ioloop, os
 import tornado.web
 import argparse, yaml
+from pprint import pprint
 from tornado import httpclient
 from mako import exceptions
 from mako.lookup import TemplateLookup
@@ -14,6 +15,8 @@ class Probe:
 		self.connectTimeout = None
 		self.executionTimeout = None
 		self.server = None
+		self.lastCheck = None
+		self.lastResult = None
 	
 	def parseProbe(self, oProbe):
 		pass
@@ -24,9 +27,22 @@ class ProbeBuilder:
 		if oConfiguration['probes'] == None:
 			raise Exception("Unable to find the probes section")
 		aProbes = []
-		for sKey, oValue in oConfiguration['probes'].iteritems():
+		for sKey, oEachProbe in oConfiguration['probes'].iteritems():
 			sProbeName = sKey
+			assert isinstance(sProbeName, str)
+			assert isinstance(oEachProbe['url'], str)
+			assert isinstance(oEachProbe['connectTimeout'], int)
+			assert isinstance(oEachProbe['executionTimeout'], int)
+			assert isinstance(oEachProbe['servers'], list)
+			for sEachServer in oEachProbe['servers']:
+				oProbe = Probe()
+				oProbe.name = sProbeName
+				oProbe.connectTimeout = oEachProbe['connectTimeout']
+				oProbe.executionTimeout = oEachProbe['executionTimeout']
+				oProbe.server = sEachServer
+				aProbes.append(oProbe)
 			print sKey
+		return aProbes
 	
 ############ Configuration parsing
 oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
@@ -47,7 +63,7 @@ oStream = file(sConfigurationFile, 'r')
 oConfiguration = yaml.load(oStream)
 
 oProbeBuilder = ProbeBuilder()
-oProbeBuilder.buildProbesFromConfiguration(oConfiguration)
+aListOfProbes = oProbeBuilder.buildProbesFromConfiguration(oConfiguration)
 print((oConfiguration))
 exit()
 
