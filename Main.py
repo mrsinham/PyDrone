@@ -6,8 +6,18 @@ from mako import exceptions
 from mako.lookup import TemplateLookup
 
 
-
-
+############# Probe #################
+class Probe:
+	
+	def __init__(self):
+		self.name = None
+		self.connectTimeout = None
+		self.executionTimeout = None
+		self.servers = []
+	
+	def parseProbe(self, oProbe):
+		pass
+	
 ############ Configuration parsing
 oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
 oParser.add_argument('--conf', help='Configuraton file path')
@@ -25,7 +35,7 @@ else:
 
 oStream = file(sConfigurationFile, 'r')
 oConfiguration = yaml.load(oStream)
-print(vars(oConfiguration))
+print((oConfiguration))
 exit()
 
 ############" Start of web server
