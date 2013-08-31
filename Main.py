@@ -13,10 +13,20 @@ class Probe:
 		self.name = None
 		self.connectTimeout = None
 		self.executionTimeout = None
-		self.servers = []
+		self.server = None
 	
 	def parseProbe(self, oProbe):
 		pass
+
+class ProbeBuilder:
+	
+	def buildProbesFromConfiguration(self, oConfiguration):
+		if oConfiguration['probes'] == None:
+			raise Exception("Unable to find the probes section")
+		aProbes = []
+		for sKey, oValue in oConfiguration['probes'].iteritems():
+			sProbeName = sKey
+			print sKey
 	
 ############ Configuration parsing
 oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
@@ -35,6 +45,9 @@ else:
 
 oStream = file(sConfigurationFile, 'r')
 oConfiguration = yaml.load(oStream)
+
+oProbeBuilder = ProbeBuilder()
+oProbeBuilder.buildProbesFromConfiguration(oConfiguration)
 print((oConfiguration))
 exit()
 
