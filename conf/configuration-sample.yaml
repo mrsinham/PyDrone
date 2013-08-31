@@ -1,0 +1,7 @@
+--- # Liste des sondes
+basic:
+	- 
+		url: http://loully.ignorelist.com/monitoring/status
+		connectTimeout: 100
+		executionTimeout: 100
+		servers: [ks361294.kimsufi.com, loully.ignorelist.com]
