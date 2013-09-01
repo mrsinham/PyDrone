@@ -1,12 +1,12 @@
 import tornado.ioloop, os
 import tornado.web
-import argparse, yaml, logging, threading
+import argparse, yaml, logging, threading, urllib2, urllib
 from time import sleep
 from pprint import pprint
 from tornado import httpclient
 from mako import exceptions
 from mako.lookup import TemplateLookup
-
+from urlparse import urlparse, urlunparse, urljoin
 
 ############# Probe #################
 class Probe:
@@ -17,7 +17,8 @@ class Probe:
 		self.executionTimeout = None
 		self.server = None
 		self.lastCheck = None
-		self.lastResult = None
+		self.lastCode = None
+		self.lastMessage = None
 		self.checkEvery = None # Check every, in sec
 	
 	def parseProbe(self, oProbe):
@@ -28,9 +29,11 @@ class ProbeBuilder:
 	def buildProbesFromConfiguration(self, oConfiguration):
 		if oConfiguration['probes'] == None:
 			raise Exception("Unable to find the probes section")
-		aProbes = []
+		aProbes = {}
 		for sKey, oEachProbe in oConfiguration['probes'].iteritems():
 			sProbeName = sKey
+			if sKey not in aProbes.keys():
+				aProbes[sKey] = []
 			assert isinstance(sProbeName, str)
 			assert isinstance(oEachProbe['url'], str)
 			assert isinstance(oEachProbe['connectTimeout'], int)
@@ -40,13 +43,40 @@ class ProbeBuilder:
 			for sEachServer in oEachProbe['servers']:
 				oProbe = Probe()
 				oProbe.name = sProbeName
+				oProbe.url = oEachProbe['url']
 				oProbe.connectTimeout = oEachProbe['connectTimeout']
 				oProbe.executionTimeout = oEachProbe['executionTimeout']
 				oProbe.checkEvery = oEachProbe['checkEvery']
 				oProbe.server = sEachServer
-				aProbes.append(oProbe)
+				aProbes[sKey].append(oProbe)
 			print sKey
 		return aProbes
+
+class ProbeLauncher:
+
+	def sendProbe(self, oProbe):
+		assert isinstance(oProbe, Probe)
+		# We have a probe now we build the url to call
+		oUrl = urlparse(oProbe.url)
+		oUrlDict = oUrl._asdict()
+		sNewUrl = urlunparse((oUrl.scheme, oProbe.server, oUrl.path, '', oUrl.query, oUrl.fragment))
+		logging.info('Checking server :'+oProbe.server)
+		oNewHttpRequest = urllib2.Request(sNewUrl, None, {'Header': oUrl.netloc})
+		try:
+			oResponse = urllib2.urlopen(oNewHttpRequest)
+			oProbe.lastCode = 200
+			oProbe.lastMessage = 'OK'
+		except urllib2.HTTPError as e:
+			print e.reason
+			oProbe.lastCode = e.code
+			oProbe.lastMessage = e.reason
+			return
+		print oResponse.info()
+		#oUrl.netloc = oProbe.server
+		#sUrlToCall = urljoin(oProbe.url, oUrl.scheme + '://' + oProbe.server)
+		#sUrlToCall = oUrl.scheme + '://' + oProbe.server + oUrl.path 
+		#print sUrlToCall
+
 
 ####################### Scheduler 
 
@@ -58,7 +88,11 @@ class Scheduler(threading.Thread):
 		self.bRunning = True
 	def run(self):
 		while self.bRunning:
-			logging.info('logging in a thread')
+			for sEachGroup in self.aListOfProbes.keys():
+				logging.info('Monitoring probe group : '+ sEachGroup)
+				for oEachProbe in self.aListOfProbes[sEachGroup]:
+					oEngine = ProbeLauncher()
+					oEngine.sendProbe(oEachProbe)
 			sleep(0.5)
 	def stop(self):
 		self.bRunning = False
@@ -101,7 +135,7 @@ template_lookup = TemplateLookup(input_encoding='utf-8',
     encoding_errors='replace',
     directories=[template_root])
 
-def render_template(filename):
+def render_template(filename, **kwargs):
     if os.path.isdir(os.path.join(template_root, filename)):
         filename = os.path.join(filename, 'index.html')
     else:
@@ -109,7 +143,7 @@ def render_template(filename):
     if any(filename.lstrip('/').startswith(p) for p in blacklist_templates):
         raise httpclient.HTTPError(404)
     try:
-        return template_lookup.get_template(filename).render()
+        return template_lookup.get_template(filename).render(**kwargs)
     except exceptions.TopLevelLookupException:
         raise httpclient.HTTPError(404)
 
@@ -130,14 +164,16 @@ class MainHandler(DefaultHandler):
         self.redirect('/monitor')
 
 class Monitor(tornado.web.RequestHandler):
-    def get(self):
-        self.write(render_template('monitor'))
+	def initialize(self, aProbeList):
+		self.aProbeList = aProbeList
+	def get(self):
+        	self.write(render_template('monitor', aProbes=self.aProbeList))
 
 
 oApplication = tornado.web.Application(
     [
         ('/', MainHandler),
-        ('/monitor', Monitor)
+        ('/monitor', Monitor, dict(aProbeList=aListOfProbes))
     ], static_path=os.path.join(root, 'static')
 )
 
