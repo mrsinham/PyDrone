@@ -60,18 +60,15 @@ class ProbeLauncher:
 		oUrl = urlparse(oProbe.url)
 		oUrlDict = oUrl._asdict()
 		sNewUrl = urlunparse((oUrl.scheme, oProbe.server, oUrl.path, '', oUrl.query, oUrl.fragment))
-		logging.info('Checking server :'+oProbe.server)
 		oNewHttpRequest = urllib2.Request(sNewUrl, None, {'Header': oUrl.netloc})
 		try:
 			oResponse = urllib2.urlopen(oNewHttpRequest)
 			oProbe.lastCode = 200
 			oProbe.lastMessage = 'OK'
 		except urllib2.HTTPError as e:
-			print e.reason
 			oProbe.lastCode = e.code
 			oProbe.lastMessage = e.reason
-			return
-		print oResponse.info()
+		logging.info('Checking server : '+oProbe.server+ ' and got '+ str(oProbe.lastCode))
 		#oUrl.netloc = oProbe.server
 		#sUrlToCall = urljoin(oProbe.url, oUrl.scheme + '://' + oProbe.server)
 		#sUrlToCall = oUrl.scheme + '://' + oProbe.server + oUrl.path 
@@ -93,7 +90,7 @@ class Scheduler(threading.Thread):
 				for oEachProbe in self.aListOfProbes[sEachGroup]:
 					oEngine = ProbeLauncher()
 					oEngine.sendProbe(oEachProbe)
-			sleep(0.5)
+			sleep(10)
 	def stop(self):
 		self.bRunning = False
 
@@ -103,7 +100,8 @@ oParser = argparse.ArgumentParser(description='Python drone : monitor your appli
 oParser.add_argument('--conf', help='Configuraton file path')
 oArguments = oParser.parse_args()
 
-logging.basicConfig(level=logging.INFO)
+sLoggingFormat = '%(asctime)-15s %(message)s'
+logging.basicConfig(level=logging.INFO, format=sLoggingFormat)
 
 if oArguments.conf == None:
 	oParser.print_help()

@@ -40,7 +40,7 @@
 				sUrl = ''
 		%>
         <tr>
-                <td colspan="4">${sGroup} : ${sUrl}</td>
+                <td colspan="4"><strong>${sGroup} :</strong> <small>${sUrl}</small></td>
         </tr>
                 % for oEachProbe in aProbes[sGroup]:
                         <%
@@ -58,9 +58,9 @@
 					sCodeBadge = 'badge-inverse'
                         %>
                         <tr class="${sRowClass}">
-                                <td class="${sRowClass}">${oEachProbe.server}</td>
+                                <td class="${sRowClass}"><small>${oEachProbe.server}</small></td>
                                 <td class="${sRowClass}"><span class="badge ${sCodeBadge}">${oEachProbe.lastCode}</span></td>
-                                <td class="${sRowClass}">${oEachProbe.lastMessage}</td>
+                                <td class="${sRowClass}"><small><strong>${oEachProbe.lastMessage}</strong></small></td>
                                 <td>
                                         % if 200 != oEachProbe.lastCode :
                                         ----
