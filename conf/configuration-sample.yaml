@@ -5,4 +5,5 @@ probes:
             url: http://loully.ignorelist.com/monitoring/status
             connectTimeout: 100
             executionTimeout: 100
+            checkEvery: 3.0
             servers: [ks361294.kimsufi.com, loully.ignorelist.com]

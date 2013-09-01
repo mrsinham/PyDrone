@@ -1,6 +1,7 @@
 import tornado.ioloop, os
 import tornado.web
-import argparse, yaml
+import argparse, yaml, logging, threading
+from time import sleep
 from pprint import pprint
 from tornado import httpclient
 from mako import exceptions
@@ -17,6 +18,7 @@ class Probe:
 		self.server = None
 		self.lastCheck = None
 		self.lastResult = None
+		self.checkEvery = None # Check every, in sec
 	
 	def parseProbe(self, oProbe):
 		pass
@@ -33,21 +35,41 @@ class ProbeBuilder:
 			assert isinstance(oEachProbe['url'], str)
 			assert isinstance(oEachProbe['connectTimeout'], int)
 			assert isinstance(oEachProbe['executionTimeout'], int)
+			assert isinstance(oEachProbe['checkEvery'], float)
 			assert isinstance(oEachProbe['servers'], list)
 			for sEachServer in oEachProbe['servers']:
 				oProbe = Probe()
 				oProbe.name = sProbeName
 				oProbe.connectTimeout = oEachProbe['connectTimeout']
 				oProbe.executionTimeout = oEachProbe['executionTimeout']
+				oProbe.checkEvery = oEachProbe['checkEvery']
 				oProbe.server = sEachServer
 				aProbes.append(oProbe)
 			print sKey
 		return aProbes
+
+####################### Scheduler 
+
+class Scheduler(threading.Thread):
+	def __init__(self, sName, aListOfProbes):
+		threading.Thread.__init__(self)
+                self.name = sName
+                self.aListOfProbes = aListOfProbes
+		self.bRunning = True
+	def run(self):
+		while self.bRunning:
+			logging.info('logging in a thread')
+			sleep(0.5)
+	def stop(self):
+		self.bRunning = False
+
 	
 ############ Configuration parsing
 oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
 oParser.add_argument('--conf', help='Configuraton file path')
 oArguments = oParser.parse_args()
+
+logging.basicConfig(level=logging.INFO)
 
 if oArguments.conf == None:
 	oParser.print_help()
@@ -64,8 +86,9 @@ oConfiguration = yaml.load(oStream)
 
 oProbeBuilder = ProbeBuilder()
 aListOfProbes = oProbeBuilder.buildProbesFromConfiguration(oConfiguration)
-print((oConfiguration))
-exit()
+
+oScheduler = Scheduler('Main', aListOfProbes)
+oScheduler.start()
 
 ############" Start of web server
 
@@ -121,4 +144,7 @@ oApplication = tornado.web.Application(
 
 if __name__ == '__main__':
     oApplication.listen(3498)
-    tornado.ioloop.IOLoop.instance().start()
+    try:
+        tornado.ioloop.IOLoop.instance().start()
+    except (KeyboardInterrupt, SystemExit):
+	oScheduler.stop()
