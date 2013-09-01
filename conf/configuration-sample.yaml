@@ -7,3 +7,5 @@ probes:
             executionTimeout: 100
             checkEvery: 3.0
             servers: [ks361294.kimsufi.com, loully.ignorelist.com]
+            emailsToWarn: [julien.lefevr@gmail.com]
+            nmaToWarn: [rezrezrez]
