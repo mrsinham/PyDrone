@@ -1,6 +1,7 @@
 import tornado.ioloop, os
 import tornado.web
 import argparse, yaml, logging, threading, urllib2, urllib
+import json
 from time import sleep
 from pprint import pprint
 from tornado import httpclient
@@ -20,9 +21,16 @@ class Probe:
 		self.lastCode = None
 		self.lastMessage = None
 		self.checkEvery = None # Check every, in sec
+		self.lastApplications = []
+		
 	
-	def parseProbe(self, oProbe):
+	def resetApplications(self):
+		self.lastApplications = []
 		pass
+
+	def addApplication(self, iApplicationCode, sApplicationName, sApplicationResponse):
+		aApplication = { 'code': iApplicationCode, 'name': sApplicationName, 'response': sApplicationResponse}
+		self.lastApplications.append(aApplication)
 
 class ProbeBuilder:
 	
@@ -60,11 +68,12 @@ class ProbeLauncher:
 		oUrl = urlparse(oProbe.url)
 		oUrlDict = oUrl._asdict()
 		sNewUrl = urlunparse((oUrl.scheme, oProbe.server, oUrl.path, '', oUrl.query, oUrl.fragment))
-		oNewHttpRequest = urllib2.Request(sNewUrl, None, {'Header': oUrl.netloc})
+		oNewHttpRequest = urllib2.Request(sNewUrl, None, {'Host': oUrl.netloc})
 		try:
 			oResponse = urllib2.urlopen(oNewHttpRequest)
-			oProbe.lastCode = 200
-			oProbe.lastMessage = 'OK'
+			#sResponse = oResponse.read()
+			oProbeResult = json.load(oResponse)
+			self.receiveProbe(oProbeResult, oProbe)
 		except urllib2.HTTPError as e:
 			oProbe.lastCode = e.code
 			oProbe.lastMessage = e.reason
@@ -74,6 +83,24 @@ class ProbeLauncher:
 		#sUrlToCall = oUrl.scheme + '://' + oProbe.server + oUrl.path 
 		#print sUrlToCall
 
+
+	def receiveProbe(self, oProbeResult, oProbe):
+		assert isinstance(oProbe, Probe)
+                aKeys = oProbeResult.keys()
+                if 'code' not in aKeys:
+                        raise Exception('Unable to find code in json return')
+                oProbe.lastCode = oProbeResult['code']
+                if 'response' not in aKeys:
+                        raise Exception('Unable to find response in json return')
+                oProbe.lastMessage = oProbeResult['response']
+		
+		if 'applications' in aKeys:
+			aApplications = oProbeResult['applications']
+			for aEachApp in oProbeResult['applications']:		
+				aAppKeys = aEachApp.keys()
+				if 'httpCode' in aAppKeys and 'name' in aAppKeys and 'response' in aAppKeys:
+					oProbe.addApplication(aEachApp['httpCode'], aEachApp['name'], aEachApp['response'])
+		
 
 ####################### Scheduler 
 
