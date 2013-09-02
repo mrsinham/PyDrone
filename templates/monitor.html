@@ -1,3 +1,7 @@
+<%
+import time
+%>
+
 <!doctype html>
 <html>
 <head>
@@ -27,7 +31,8 @@
         <th>Server</th>
         <th>Status</th>
         <th>Message</th>
-        <th style="width:30%">Environment</th>
+        <th style="">Environment</th>
+	<th>Last access</th>
     </tr>
 
     </thead>
@@ -40,7 +45,7 @@
 				sUrl = ''
 		%>
         <tr>
-                <td colspan="4"><strong>${sGroup} :</strong> <small>${sUrl}</small></td>
+                <td colspan="5"><strong>${sGroup} :</strong> <small>${sUrl}</small></td>
         </tr>
                 % for oEachProbe in aProbes[sGroup]:
                         <%
@@ -56,6 +61,7 @@
 					sCodeBadge = 'badge-important'
 				else:
 					sCodeBadge = 'badge-inverse'
+				sTime = time.ctime(oEachProbe.lastCheck)
                         %>
                         <tr class="${sRowClass}">
                                 <td class="${sRowClass}"><small>${oEachProbe.server}</small></td>
@@ -66,6 +72,7 @@
                                         ----
                                         % endif
                                 </td>
+				<td>${sTime}</td>
                         </tr>
                 % endfor
         % endfor

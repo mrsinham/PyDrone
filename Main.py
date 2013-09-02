@@ -2,7 +2,7 @@ import tornado.ioloop, os
 import tornado.web
 import argparse, yaml, logging, threading, urllib2, urllib
 import json
-from time import sleep
+from time import sleep, time, ctime
 from pprint import pprint
 from tornado import httpclient
 from mako import exceptions
@@ -22,15 +22,19 @@ class Probe:
 		self.lastMessage = None
 		self.checkEvery = None # Check every, in sec
 		self.lastApplications = []
-		
+		self.lastEnv = []
 	
 	def resetApplications(self):
 		self.lastApplications = []
-		pass
 
+	def resetEnv(self):
+		self.lastEnv = []
 	def addApplication(self, iApplicationCode, sApplicationName, sApplicationResponse):
 		aApplication = { 'code': iApplicationCode, 'name': sApplicationName, 'response': sApplicationResponse}
 		self.lastApplications.append(aApplication)
+	def addEnvironment(self, sEnvName, mEnvValue):
+		aEnv = {'name':sEnvName, 'value':mEnvValue}
+		self.lastEnv.append(aEnv)
 
 class ProbeBuilder:
 	
@@ -77,6 +81,7 @@ class ProbeLauncher:
 		except urllib2.HTTPError as e:
 			oProbe.lastCode = e.code
 			oProbe.lastMessage = e.reason
+		oProbe.lastCheck = time()
 		logging.info('Checking server : '+oProbe.server+ ' and got '+ str(oProbe.lastCode))
 		#oUrl.netloc = oProbe.server
 		#sUrlToCall = urljoin(oProbe.url, oUrl.scheme + '://' + oProbe.server)
@@ -85,6 +90,8 @@ class ProbeLauncher:
 
 
 	def receiveProbe(self, oProbeResult, oProbe):
+		oProbe.resetApplications()
+		oProbe.resetEnv()
 		assert isinstance(oProbe, Probe)
                 aKeys = oProbeResult.keys()
                 if 'code' not in aKeys:
@@ -100,6 +107,10 @@ class ProbeLauncher:
 				aAppKeys = aEachApp.keys()
 				if 'httpCode' in aAppKeys and 'name' in aAppKeys and 'response' in aAppKeys:
 					oProbe.addApplication(aEachApp['httpCode'], aEachApp['name'], aEachApp['response'])
+		if 'environment' in aKeys:
+			aEnv = oProbeResult['environment']
+			for sEnvName, mValue in aEnv.iteritems():
+				oProbe.addEnvironment(sEnvName, mValue)
 		
 
 ####################### Scheduler 
