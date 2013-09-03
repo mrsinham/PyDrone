@@ -40,11 +40,11 @@ import time
 <%
 
 def returnClassByCode(iCode):
-	if 200 == oEachProbe.lastCode:
+	if 200 == iCode:
         	sCodeBadge = 'badge-success'
-        elif 400 < oEachProbe.lastCode:
+        elif 400 <= iCode:
                 sCodeBadge = 'badge-warning'
-        elif 500 < oEachProbe.lastCode:
+        elif 500 <= iCode:
                 sCodeBadge = 'badge-important'
         else:
                 sCodeBadge = 'badge-inverse'
