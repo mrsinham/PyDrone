@@ -9,6 +9,7 @@ import time
 
     <link rel="stylesheet" href="/static/bootstrap/css/bootstrap-responsive.min.css" type="text/css" />
     <link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css" type="text/css" />
+	<meta http-equiv="Refresh" CONTENT="10"/>
 </head>
 <body>
 <!-- Drone header -->
@@ -31,9 +32,24 @@ import time
         <th>Server</th>
         <th>Status</th>
         <th>Message</th>
+	<th>Application</th>
         <th style="">Environment</th>
 	<th>Last access</th>
     </tr>
+
+<%
+
+def returnClassByCode(iCode):
+	if 200 == oEachProbe.lastCode:
+        	sCodeBadge = 'badge-success'
+        elif 400 < oEachProbe.lastCode:
+                sCodeBadge = 'badge-warning'
+        elif 500 < oEachProbe.lastCode:
+                sCodeBadge = 'badge-important'
+        else:
+                sCodeBadge = 'badge-inverse'
+	return sCodeBadge
+%>
 
     </thead>
     <tbody>
@@ -53,20 +69,18 @@ import time
                                         sRowClass = 'warning'
                                 else:
                                         sRowClass = ''
-				if 200 == oEachProbe.lastCode:
-					sCodeBadge = 'badge-success'
-				elif 400 < oEachProbe.lastCode:
-					sCodeBadge = 'badge-warning'
-				elif 500 < oEachProbe.lastCode:
-					sCodeBadge = 'badge-important'
-				else:
-					sCodeBadge = 'badge-inverse'
 				sTime = time.ctime(oEachProbe.lastCheck)
                         %>
-                        <tr class="${sRowClass}">
+                        <tr class="${sRowClass}" data-id="${oEachProbe.id}">
                                 <td class="${sRowClass}"><small>${oEachProbe.server}</small></td>
-                                <td class="${sRowClass}"><span class="badge ${sCodeBadge}">${oEachProbe.lastCode}</span></td>
+                                <td class="${sRowClass}"><span class="badge ${returnClassByCode(oEachProbe.lastCode)}">${oEachProbe.lastCode}</span></td>
                                 <td class="${sRowClass}"><small><strong>${oEachProbe.lastMessage}</strong></small></td>
+				<td>
+					% for oEachApplication in oEachProbe.lastApplications:
+					<span class="badge ${returnClassByCode(oEachApplication['code'])}">${oEachApplication['name']}</span>
+
+					% endfor
+				</td>
                                 <td>
                                         % if 200 != oEachProbe.lastCode :
                                         ----

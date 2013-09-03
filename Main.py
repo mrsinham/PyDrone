@@ -4,7 +4,7 @@ import argparse, yaml, logging, threading, urllib2, urllib
 import json
 from time import sleep, time, ctime
 from pprint import pprint
-from tornado import httpclient
+from tornado import httpclient, websocket
 from mako import exceptions
 from mako.lookup import TemplateLookup
 from urlparse import urlparse, urlunparse, urljoin
@@ -13,6 +13,7 @@ from urlparse import urlparse, urlunparse, urljoin
 class Probe:
 	
 	def __init__(self):
+		self.id = None
 		self.name = None
 		self.connectTimeout = None
 		self.executionTimeout = None
@@ -38,7 +39,11 @@ class Probe:
 
 class ProbeBuilder:
 	
+	def __init__(self):
+		self.iCurrentId = 0
+
 	def buildProbesFromConfiguration(self, oConfiguration):
+		self.iCurrentId = 0
 		if oConfiguration['probes'] == None:
 			raise Exception("Unable to find the probes section")
 		aProbes = {}
@@ -52,8 +57,10 @@ class ProbeBuilder:
 			assert isinstance(oEachProbe['executionTimeout'], int)
 			assert isinstance(oEachProbe['checkEvery'], float)
 			assert isinstance(oEachProbe['servers'], list)
+			
 			for sEachServer in oEachProbe['servers']:
 				oProbe = Probe()
+				oProbe.id = self.iCurrentId
 				oProbe.name = sProbeName
 				oProbe.url = oEachProbe['url']
 				oProbe.connectTimeout = oEachProbe['connectTimeout']
@@ -61,10 +68,14 @@ class ProbeBuilder:
 				oProbe.checkEvery = oEachProbe['checkEvery']
 				oProbe.server = sEachServer
 				aProbes[sKey].append(oProbe)
+				self.iCurrentId+=1
 			print sKey
 		return aProbes
 
 class ProbeLauncher:
+
+	def __init__(self, oProbeEvent):
+		self.oProbeEvent = oProbeEvent
 
 	def sendProbe(self, oProbe):
 		assert isinstance(oProbe, Probe)
@@ -73,6 +84,7 @@ class ProbeLauncher:
 		oUrlDict = oUrl._asdict()
 		sNewUrl = urlunparse((oUrl.scheme, oProbe.server, oUrl.path, '', oUrl.query, oUrl.fragment))
 		oNewHttpRequest = urllib2.Request(sNewUrl, None, {'Host': oUrl.netloc})
+		iPreviousCode = oProbe.lastCode
 		try:
 			oResponse = urllib2.urlopen(oNewHttpRequest)
 			#sResponse = oResponse.read()
@@ -86,6 +98,9 @@ class ProbeLauncher:
 			oProbe.lastMessage = e.reason
 		oProbe.lastCheck = time()
 		logging.info('Checking server : '+oProbe.server+ ' and got '+ str(oProbe.lastCode))
+		if oProbe.lastCode != iPreviousCode:
+			# push probe to the event handler
+			self.oProbeEvent.pushProbeEvent(oProbe)
 		#oUrl.netloc = oProbe.server
 		#sUrlToCall = urljoin(oProbe.url, oUrl.scheme + '://' + oProbe.server)
 		#sUrlToCall = oUrl.scheme + '://' + oProbe.server + oUrl.path 
@@ -108,20 +123,34 @@ class ProbeLauncher:
 			aApplications = oProbeResult['applications']
 			for aEachApp in oProbeResult['applications']:		
 				aAppKeys = aEachApp.keys()
-				if 'httpCode' in aAppKeys and 'name' in aAppKeys and 'response' in aAppKeys:
-					oProbe.addApplication(aEachApp['httpCode'], aEachApp['name'], aEachApp['response'])
+				if 'code' in aAppKeys and 'name' in aAppKeys and 'response' in aAppKeys:
+					oProbe.addApplication(aEachApp['code'], aEachApp['name'], aEachApp['response'])
 		if 'environment' in aKeys:
 			aEnv = oProbeResult['environment']
 			for sEnvName, mValue in aEnv.iteritems():
 				oProbe.addEnvironment(sEnvName, mValue)
 		
+###################### Event
+class ProbeEvent:
+	
+	def __init__(self):
+		self.aListener = []
+
+	def addListener(self, oListener):
+		self.aListener.append(oListener)
+
+	def pushProbeEvent(self, oProbe):
+		for oEachListener in self.aListener:
+			oEachListener.sendUpdate(oProbe)
+
 
 ####################### Scheduler 
 
 class Scheduler(threading.Thread):
-	def __init__(self, sName, aListOfProbes):
+	def __init__(self, sName, aListOfProbes, oProbeEvent):
 		threading.Thread.__init__(self)
                 self.name = sName
+		self.oProbeEvent = oProbeEvent
                 self.aListOfProbes = aListOfProbes
 		self.bRunning = True
 		self._stopevent = threading.Event()
@@ -130,10 +159,11 @@ class Scheduler(threading.Thread):
 			for sEachGroup in self.aListOfProbes.keys():
 				logging.info('Monitoring probe group : '+ sEachGroup)
 				for oEachProbe in self.aListOfProbes[sEachGroup]:
-					oEngine = ProbeLauncher()
+					oEngine = ProbeLauncher(self.oProbeEvent)
 					oEngine.sendProbe(oEachProbe)
 			self._stopevent.wait(10)
 	def stop(self):
+		logging.info('stopping scheduler')
 		self._stopevent.set()
 
 	
@@ -161,8 +191,11 @@ oConfiguration = yaml.load(oStream)
 oProbeBuilder = ProbeBuilder()
 aListOfProbes = oProbeBuilder.buildProbesFromConfiguration(oConfiguration)
 
-oScheduler = Scheduler('Main', aListOfProbes)
+oEvent = ProbeEvent()
+
+oScheduler = Scheduler('Main', aListOfProbes, oEvent)
 oScheduler.start()
+
 
 ############" Start of web server
 
@@ -209,18 +242,44 @@ class Monitor(tornado.web.RequestHandler):
 	def get(self):
         	self.write(render_template('monitor', aProbes=self.aProbeList))
 
+class MonitorWebsocket(tornado.websocket.WebSocketHandler):
+	waiters = set()
 
-oApplication = tornado.web.Application(
-    [
-        ('/', MainHandler),
-        ('/monitor', Monitor, dict(aProbeList=aListOfProbes))
-    ], static_path=os.path.join(root, 'static')
-)
+	def initialize(self, oEvent):
+		oEvent.addListener(self)
 
+	def open(self):
+		MonitorWebsocket.waiters.add(self)
 
-if __name__ == '__main__':
-    oApplication.listen(3498)
-    try:
-        tornado.ioloop.IOLoop.instance().start()
-    except (KeyboardInterrupt, SystemExit):
+	def on_close(self):
+		MonitorWebsocket.waiters.remove(self)
+	
+	def transformProbeInfoMessage(self, oProbe):
+		assert isinstance(oProbe, Probe)
+		return ''
+	
+	def sendUpdate(oProbe):
+		for oEachWaiters in waiters:
+			try:
+				oEachWaiters.write_message(self.transformProbeIntoMessage(oProbe))
+			except:
+				logging.error('Unable to send probe update')			
+
+	def on_message(self, sMessage):
+		pass
+
+try:
+	oApplication = tornado.web.Application(
+    		[
+        	('/', MainHandler),
+        	('/monitor', Monitor, dict(aProbeList=aListOfProbes)),
+		('/socket', MonitorWebsocket, dict(oEvent=oEvent))
+    		], static_path=os.path.join(root, 'static')
+	)
+
+	if __name__ == '__main__':
+    		oApplication.listen(3498)
+        	tornado.ioloop.IOLoop.instance().start()
+except (Exception, KeyboardInterrupt, SystemExit) as e:
+	logging.info('shudown webserver')
 	oScheduler.stop()
