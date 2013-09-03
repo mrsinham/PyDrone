@@ -124,16 +124,17 @@ class Scheduler(threading.Thread):
                 self.name = sName
                 self.aListOfProbes = aListOfProbes
 		self.bRunning = True
+		self._stopevent = threading.Event()
 	def run(self):
-		while self.bRunning:
+		while not self._stopevent.isSet():
 			for sEachGroup in self.aListOfProbes.keys():
 				logging.info('Monitoring probe group : '+ sEachGroup)
 				for oEachProbe in self.aListOfProbes[sEachGroup]:
 					oEngine = ProbeLauncher()
 					oEngine.sendProbe(oEachProbe)
-			sleep(10)
+			self._stopevent.wait(10)
 	def stop(self):
-		self.bRunning = False
+		self._stopevent.set()
 
 	
 ############ Configuration parsing
