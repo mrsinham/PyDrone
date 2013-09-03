@@ -81,6 +81,9 @@ class ProbeLauncher:
 		except urllib2.HTTPError as e:
 			oProbe.lastCode = e.code
 			oProbe.lastMessage = e.reason
+		except urllib2.URLError as e:
+			oProbe.lastCode = 500
+			oProbe.lastMessage = e.reason
 		oProbe.lastCheck = time()
 		logging.info('Checking server : '+oProbe.server+ ' and got '+ str(oProbe.lastCode))
 		#oUrl.netloc = oProbe.server
