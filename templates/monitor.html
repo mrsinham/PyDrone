@@ -15,9 +15,9 @@ import time
 <!-- Drone header -->
 <div class="navbar">
     <div class="navbar-inner">
-        <a class="brand" href="#"><i class="icon-home"></i> Drone surveillance room</a>
+        <a class="brand" href="#"><i class="icon-home"></i>PyDrone</a>
         <ul class="nav">
-            <li class="active"><a href="/monitor">Home</a></li>
+            <li class="active"><a href="/monitor">Monitor</a></li>
             <!--<li class=""><a href="/Html/probes.html">Probes</a> </li>
             <li class=""><a href="/Html/options.html">Configuration</a></li>-->
 
@@ -25,7 +25,9 @@ import time
     </div>
 </div>
 
-<h4 style="margin-left:30px" id="buh"  data-html="tot">Overview (monitored urls : <span id="OverviewCounter" class="label label-info"></span> )</h4>
+<ul class="breadcrumb">
+	<li>Overview</li>
+</ul>
 <table class="table table-bordered" id="Overview" style=" margin-left: 30px">
     <thead>
     <tr>
@@ -33,7 +35,7 @@ import time
         <th>Status</th>
         <th>Message</th>
 	<th>Application</th>
-        <th style="">Environment</th>
+        <!--<th style="">Environment</th>-->
 	<th>Last access</th>
     </tr>
 
@@ -60,8 +62,8 @@ def returnClassByCode(iCode):
 			else:
 				sUrl = ''
 		%>
-        <tr>
-                <td colspan="5"><strong>${sGroup} :</strong> <small>${sUrl}</small></td>
+        <tr class="info">
+                <td colspan="6"><strong>${sGroup} (${len(aProbes[sGroup])} probes) :</strong> <small>${sUrl}</small></td>
         </tr>
                 % for oEachProbe in aProbes[sGroup]:
                         <%
@@ -81,11 +83,11 @@ def returnClassByCode(iCode):
 
 					% endfor
 				</td>
-                                <td>
+                                <!--<td>
                                         % if 200 != oEachProbe.lastCode :
                                         ----
                                         % endif
-                                </td>
+                                </td>-->
 				<td>${sTime}</td>
                         </tr>
                 % endfor
