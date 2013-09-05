@@ -24,7 +24,20 @@ class Probe:
 		self.checkEvery = None # Check every, in sec
 		self.lastApplications = []
 		self.lastEnv = []
+		self.running = False
 	
+	def __str__(self):
+		aDict = {
+			'id' : self.id,
+			'name' : self.name,
+			'server' : self.server,
+			'lastCheck' : self.lastCheck,
+			'lastCode' : self.lastCode,
+			'lastMessage' : self.lastMessage,
+			'lastApplications' : self.lastApplications,
+			'lastEnv' : self.lastEnv
+		}
+		return json.dumps(aDict)
 	def resetApplications(self):
 		self.lastApplications = []
 
@@ -79,6 +92,7 @@ class ProbeLauncher:
 
 	def sendProbe(self, oProbe):
 		assert isinstance(oProbe, Probe)
+		oProbe.running = True
 		# We have a probe now we build the url to call
 		oUrl = urlparse(oProbe.url)
 		oUrlDict = oUrl._asdict()
@@ -97,9 +111,11 @@ class ProbeLauncher:
 			oProbe.lastCode = 500
 			oProbe.lastMessage = e.reason
 		oProbe.lastCheck = time()
-		logging.info('Checking server : '+oProbe.server+ ' and got '+ str(oProbe.lastCode))
-		if oProbe.lastCode != iPreviousCode:
+		oProbe.running = False
+		logging.info('Checking server : '+oProbe.server+ ' from group : ' + oProbe.name + ' and got '+ str(oProbe.lastCode))
+		if True or iPreviousCode != None and oProbe.lastCode != iPreviousCode:
 			# push probe to the event handler
+			logging.warning('Change of code from '+str(iPreviousCode)+' to '+str(oProbe.lastCode))
 			self.oProbeEvent.pushProbeEvent(oProbe)
 		#oUrl.netloc = oProbe.server
 		#sUrlToCall = urljoin(oProbe.url, oUrl.scheme + '://' + oProbe.server)
@@ -134,13 +150,17 @@ class ProbeLauncher:
 class ProbeEvent:
 	
 	def __init__(self):
-		self.aListener = []
+		self.aListener = set()
 
 	def addListener(self, oListener):
-		self.aListener.append(oListener)
+		self.aListener.add(oListener)
+
+	def removeListener(self, oListener):
+		self.aListener.remove(oListener)
 
 	def pushProbeEvent(self, oProbe):
 		for oEachListener in self.aListener:
+			logging.info('push to listener')
 			oEachListener.sendUpdate(oProbe)
 
 
@@ -157,11 +177,11 @@ class Scheduler(threading.Thread):
 	def run(self):
 		while not self._stopevent.isSet():
 			for sEachGroup in self.aListOfProbes.keys():
-				logging.info('Monitoring probe group : '+ sEachGroup)
 				for oEachProbe in self.aListOfProbes[sEachGroup]:
-					oEngine = ProbeLauncher(self.oProbeEvent)
-					oEngine.sendProbe(oEachProbe)
-			self._stopevent.wait(10)
+					if False == oEachProbe.running  and (None == oEachProbe.lastCheck or (oEachProbe.lastCheck+oEachProbe.checkEvery) < time()):
+						oEngine = ProbeLauncher(self.oProbeEvent)
+						oEngine.sendProbe(oEachProbe)
+			self._stopevent.wait(0.5)
 	def stop(self):
 		logging.info('stopping scheduler')
 		self._stopevent.set()
@@ -246,23 +266,29 @@ class MonitorWebsocket(tornado.websocket.WebSocketHandler):
 	waiters = set()
 
 	def initialize(self, oEvent):
+		logging.info('a websocket client has connected')
+		self.oEvent = oEvent
 		oEvent.addListener(self)
 
 	def open(self):
+		logging.info('open')
 		MonitorWebsocket.waiters.add(self)
 
 	def on_close(self):
+		logging.info('close')
 		MonitorWebsocket.waiters.remove(self)
+		oEvent.removeListener(self)
 	
 	def transformProbeInfoMessage(self, oProbe):
 		assert isinstance(oProbe, Probe)
 		return ''
 	
-	def sendUpdate(oProbe):
-		for oEachWaiters in waiters:
+	def sendUpdate(self, oProbe):
+		for oEachWaiters in MonitorWebsocket.waiters:
 			try:
-				oEachWaiters.write_message(self.transformProbeIntoMessage(oProbe))
-			except:
+				oEachWaiters.write_message(str(oProbe))
+			except Exception as e:
+				print e
 				logging.error('Unable to send probe update')			
 
 	def on_message(self, sMessage):

@@ -5,7 +5,7 @@ probes:
             url: http://loully.ignorelist.com/map/toto.js
             connectTimeout: 100
             executionTimeout: 100
-            checkEvery: 3.0
+            checkEvery: 5.0
             servers: [ks361297.kimsufi.com, loully.ignorelist.com]
             emailsToWarn: [julien.lefevr@gmail.com]
             nmaToWarn: [rezrezrez]
