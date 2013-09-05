@@ -5,9 +5,18 @@ Updater = function() {
 
 Updater.prototype.start = function() {
 	this.oWebSocket = new  WebSocket(this.url);
+	var oThat = this;
 	this.oWebSocket.onmessage = function(event) {
-		console.log(event.data);
+		aData = JSON.parse(event.data);
+		oThat.updateProbe(aData);
 	};
+};
+
+Updater.prototype.updateProbe = function(oProbe) {
+	console.log(oProbe);
+	var sId = oProbe.id;
+	var oRow = $('#probe-'+sId);
+	oRow.find('.code span').html(oProbe.lastCode);
 };
 
 oUpdater = new Updater();

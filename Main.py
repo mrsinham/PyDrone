@@ -113,7 +113,7 @@ class ProbeLauncher:
 		oProbe.lastCheck = time()
 		oProbe.running = False
 		logging.info('Checking server : '+oProbe.server+ ' from group : ' + oProbe.name + ' and got '+ str(oProbe.lastCode))
-		if True or iPreviousCode != None and oProbe.lastCode != iPreviousCode:
+		if iPreviousCode != None and oProbe.lastCode != iPreviousCode:
 			# push probe to the event handler
 			logging.warning('Change of code from '+str(iPreviousCode)+' to '+str(oProbe.lastCode))
 			self.oProbeEvent.pushProbeEvent(oProbe)

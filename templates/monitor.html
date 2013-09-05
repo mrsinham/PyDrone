@@ -9,7 +9,8 @@ import time
 
     	<link rel="stylesheet" href="/static/bootstrap/css/bootstrap-responsive.min.css" type="text/css" />
 	<link rel="stylesheet" href="/static/bootstrap/css/bootstrap.min.css" type="text/css" />
-	<meta http-equiv="Refresh" CONTENT="10"/>
+	<!--<meta http-equiv="Refresh" CONTENT="10"/>-->
+	<script type="text/javascript" src="/static/jquery/jquery.min.js"></script>
 	<script type="text/javascript" src="/static/updater.js"></script>
 </head>
 <body>
@@ -69,16 +70,16 @@ def returnClassByCode(iCode):
                 % for oEachProbe in aProbes[sGroup]:
                         <%
                                 if 200 != oEachProbe.lastCode:
-                                        sRowClass = 'warning'
+                                        sRowClass = 'warning '
                                 else:
                                         sRowClass = ''
 				sTime = time.ctime(oEachProbe.lastCheck)
                         %>
-                        <tr class="${sRowClass}" data-id="${oEachProbe.id}">
-                                <td class="${sRowClass}"><small>${oEachProbe.server}</small></td>
-                                <td class="${sRowClass}"><span class="badge ${returnClassByCode(oEachProbe.lastCode)}">${oEachProbe.lastCode}</span></td>
-                                <td class="${sRowClass}"><small><strong>${oEachProbe.lastMessage}</strong></small></td>
-				<td>
+                        <tr class="${sRowClass}" id="probe-${oEachProbe.id}">
+                                <td class="${sRowClass}server"><small>${oEachProbe.server}</small></td>
+                                <td class="${sRowClass}code"><span class="badge ${returnClassByCode(oEachProbe.lastCode)}">${oEachProbe.lastCode}</span></td>
+                                <td class="${sRowClass}lastMessage"><small><strong>${oEachProbe.lastMessage}</strong></small></td>
+				<td class="${sRowClass}application">
 					% for oEachApplication in oEachProbe.lastApplications:
 					<span class="badge ${returnClassByCode(oEachApplication['code'])}">${oEachApplication['name']}</span>
 
@@ -89,7 +90,7 @@ def returnClassByCode(iCode):
                                         ----
                                         % endif
                                 </td>-->
-				<td>${sTime}</td>
+				<td class="${sRowClass}lastCheck">${sTime}</td>
                         </tr>
                 % endfor
         % endfor
