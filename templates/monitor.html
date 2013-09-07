@@ -38,7 +38,7 @@ import time
         <th>Message</th>
 	<th>Application</th>
         <!--<th style="">Environment</th>-->
-	<th>Last access</th>
+	<th>Checked at</th>
     </tr>
 
 <%
@@ -90,7 +90,7 @@ def returnClassByCode(iCode):
                                         ----
                                         % endif
                                 </td>-->
-				<td class="${sRowClass}lastCheck">${sTime}</td>
+				<td class="${sRowClass}lastCheck">${oEachProbe.lastCheckFormated}</td>
                         </tr>
                 % endfor
         % endfor

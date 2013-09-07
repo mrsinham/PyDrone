@@ -8,6 +8,7 @@ from tornado import httpclient, websocket
 from mako import exceptions
 from mako.lookup import TemplateLookup
 from urlparse import urlparse, urlunparse, urljoin
+import datetime
 
 ############# Probe #################
 class Probe:
@@ -19,6 +20,7 @@ class Probe:
 		self.executionTimeout = None
 		self.server = None
 		self.lastCheck = None
+		self.lastCheckFormated = None
 		self.lastCode = None
 		self.lastMessage = None
 		self.checkEvery = None # Check every, in sec
@@ -32,6 +34,7 @@ class Probe:
 			'name' : self.name,
 			'server' : self.server,
 			'lastCheck' : self.lastCheck,
+			'lastCheckFormated' : self.lastCheckFormated,
 			'lastCode' : self.lastCode,
 			'lastMessage' : self.lastMessage,
 			'lastApplications' : self.lastApplications,
@@ -101,7 +104,6 @@ class ProbeLauncher:
 		iPreviousCode = oProbe.lastCode
 		try:
 			oResponse = urllib2.urlopen(oNewHttpRequest)
-			#sResponse = oResponse.read()
 			oProbeResult = json.load(oResponse)
 			self.receiveProbe(oProbeResult, oProbe)
 		except urllib2.HTTPError as e:
@@ -111,22 +113,19 @@ class ProbeLauncher:
 			oProbe.lastCode = 500
 			oProbe.lastMessage = e.reason
 		oProbe.lastCheck = time()
+		oProbe.lastCheckFormated = datetime.datetime.fromtimestamp(oProbe.lastCheck).strftime('%d-%m-%Y %H:%M:%S')
 		oProbe.running = False
 		logging.info('Checking server : '+oProbe.server+ ' from group : ' + oProbe.name + ' and got '+ str(oProbe.lastCode))
 		if iPreviousCode != None and oProbe.lastCode != iPreviousCode:
 			# push probe to the event handler
 			logging.warning('Change of code from '+str(iPreviousCode)+' to '+str(oProbe.lastCode))
 			self.oProbeEvent.pushProbeEvent(oProbe)
-		#oUrl.netloc = oProbe.server
-		#sUrlToCall = urljoin(oProbe.url, oUrl.scheme + '://' + oProbe.server)
-		#sUrlToCall = oUrl.scheme + '://' + oProbe.server + oUrl.path 
-		#print sUrlToCall
 
 
 	def receiveProbe(self, oProbeResult, oProbe):
+		assert isinstance(oProbe, Probe)
 		oProbe.resetApplications()
 		oProbe.resetEnv()
-		assert isinstance(oProbe, Probe)
                 aKeys = oProbeResult.keys()
                 if 'code' not in aKeys:
                         raise Exception('Unable to find code in json return')
