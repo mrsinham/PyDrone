@@ -271,25 +271,39 @@ class MonitorWebsocket(tornado.websocket.WebSocketHandler):
 		oEvent.addListener(self)
 
 	def open(self):
-		logging.info('open')
 		MonitorWebsocket.waiters.add(self)
+		logging.info('New client connected. ('+self.getNbClientFormated()+')')
+		self.sendClientNbUpdate()
+
+	def getNbClient(self):
+		return len((MonitorWebsocket.waiters))
+
+	def getNbClientFormated(self):
+		return str(len(MonitorWebsocket.waiters))+' currently connected'
+
+	def sendClientNbUpdate(self):
+		self.sendMessageToAllClients('nbClientUpdate', json.dumps({'nbClient':self.getNbClient()}))
 
 	def on_close(self):
-		logging.info('close')
 		MonitorWebsocket.waiters.remove(self)
 		oEvent.removeListener(self)
+		self.sendClientNbUpdate()
+		logging.info('Client leaves. ('+self.getNbClientFormated()+')')
 	
-	def transformProbeInfoMessage(self, oProbe):
-		assert isinstance(oProbe, Probe)
-		return ''
-	
-	def sendUpdate(self, oProbe):
+	def sendMessageToAllClients(self, sType, sMessage):
 		for oEachWaiters in MonitorWebsocket.waiters:
 			try:
-				oEachWaiters.write_message(str(oProbe))
-			except Exception as e:
-				print e
-				logging.error('Unable to send probe update')			
+                                oEachWaiters.writeMessageToClient(sType, sMessage)
+                        except Exception as e:
+                                print e
+                                logging.error('Unable to send message to clients');
+
+	def writeMessageToClient(self, sType, sMessage):
+		sFinalMsg = sType + '|||' + sMessage
+		self.write_message(sFinalMsg)
+	
+	def sendUpdate(self, oProbe):
+		self.sendMessageToAllClients('probeUpdate', str(oProbe))
 
 	def on_message(self, sMessage):
 		pass
