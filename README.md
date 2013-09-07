@@ -13,5 +13,5 @@ python PyDrone/Main.py --conf PyDrone/conf/configuration-sample.yaml
 
 Todo
 =====
--[ ] Make a setup.py file
--[ ] Send email when state change
+- [ ] Make a setup.py file
+- [ ] Send email when state change
