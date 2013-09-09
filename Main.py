@@ -1,13 +1,13 @@
 import tornado.ioloop, os
 import tornado.web
-import argparse, yaml, logging, threading, urllib2, urllib
+import argparse, yaml, logging, threading, urllib2
 import json
 from time import sleep, time, ctime
 from pprint import pprint
 from tornado import httpclient, websocket
 from mako import exceptions
 from mako.lookup import TemplateLookup
-from urlparse import urlparse, urlunparse, urljoin
+from urlparse import urlparse, urlunparse
 import datetime
 
 ############# Probe #################

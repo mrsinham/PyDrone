@@ -3,6 +3,7 @@ from PyDrone.Probe import Probe, ProbeBuilder,ProbeLauncher
 from PyDrone.Web import WebLauncher
 from PyDrone.Event import ProbeEvent
 from PyDrone.Monitor import Scheduler
+from PyDrone.Notify import Mail as MailNotifier
 
 
 class PyDrone:
@@ -36,6 +37,12 @@ class PyDrone:
         self.oScheduler = Scheduler('MainScheduler', self.aListOfProbes, self.oProbeEvent)
         self.oScheduler.start()
 
+    def __startMailNotifier(self):
+        self.oMailNotifier = MailNotifier(self.oConfiguration)
+        self.oProbeEvent.addListener(self.oMailNotifier)
+        self.oMailNotifier.start()
+
+
     def start(self):
         sLoggingFormat = '%(asctime)-15s %(message)s'
         sConfigurationFile = self.__parseCmdLine(sLoggingFormat)
@@ -45,12 +52,14 @@ class PyDrone:
         oProbeBuilder = ProbeBuilder()
         self.aListOfProbes = oProbeBuilder.buildProbesFromConfiguration(self.oConfiguration)
         self.__startMonitor()
+        self.__startMailNotifier()
         try:
             self.__startWebServer()
         except (__builtins__.Exception, __builtins__.KeyboardInterrupt, __builtins__.SystemExit) as e:
             logging.error(e.message)
             logging.info('Shutdown server')
             self.oScheduler.stop()
+            self.oMailNotifier.stop()
 
 __author__ = 'Julien Lefevre'
 

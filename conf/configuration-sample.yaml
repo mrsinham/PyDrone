@@ -2,10 +2,20 @@
 probes:
         basic:
                  
-            url: http://loully.ignorelist.com/map/toto.js
+            url: http://my/url/to/the/statusfile
             connectTimeout: 100
             executionTimeout: 100
             checkEvery: 5.0
-            servers: [ks361297.kimsufi.com, loully.ignorelist.com]
-            emailsToWarn: [julien.lefevr@gmail.com]
-            nmaToWarn: [rezrezrez]
+            servers: [myserver2, myserver1]
+            emailsToWarn: [email@email.com]
+            nmaToWarn: [xxxxxxxxxxxxxxxx]
+web:
+    url: my.host.of.pydrone
+    port: 1111
+mail:
+     smtp: my.smtp.com
+     smtp_port: 587
+     login: mylogin
+     password: mypassword
+     ssl: true
+     sendEvery: 5

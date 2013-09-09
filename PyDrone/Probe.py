@@ -22,6 +22,7 @@ class Probe:
         self.lastApplications = []
         self.lastEnv = []
         self.running = False
+        self.emailsToWarn = []
 
     def __str__(self):
         aDict = {
@@ -55,7 +56,7 @@ class ProbeBuilder:
 
     def buildProbesFromConfiguration(self, oConfiguration):
         self.iCurrentId = 0
-        if oConfiguration['probes'] == None:
+        if oConfiguration['probes'] is None:
             raise Exception("Unable to find the probes section")
         aProbes = {}
         for sKey, oEachProbe in oConfiguration['probes'].iteritems():

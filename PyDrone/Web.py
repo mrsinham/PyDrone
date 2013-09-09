@@ -8,6 +8,8 @@ import Event
 
 class WebLauncher:
 
+    defaultPort = 3498
+
     def __init__(self, sRootDir, aConfiguration, aListOfProbes, oEvent):
         assert isinstance(oEvent, Event.ProbeEvent)
         self.template_root = os.path.join(sRootDir, 'templates')
@@ -25,8 +27,18 @@ class WebLauncher:
             ], static_path=os.path.join(sRootDir, 'static')
         )
 
+    def getPort(self):
+        if 'web' not in self.aConfiguration.keys():
+            return WebLauncher.defaultPort
+        if 'port' in self.aConfiguration['web'].keys() and isinstance(self.aConfiguration['web']['port'], int):
+            return int(self.aConfiguration['web']['port'])
+
+
+
     def start(self):
-        self.oApplication.listen(3498)
+        iPort = self.getPort()
+        logging.info('Starting web server on port '+ str(iPort))
+        self.oApplication.listen(iPort)
         tornado.ioloop.IOLoop.instance().start()
 
     def get_error_html(self, status_code, exception, **kwargs):
