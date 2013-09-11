@@ -3,6 +3,7 @@ import threading
 import logging
 import smtplib
 from email.mime.text import MIMEText
+from pprint import pprint
 
 class Mail(threading.Thread):
 
@@ -20,8 +21,8 @@ class Mail(threading.Thread):
         self.sSmtpLogin = None
         self.sSmtpPass = None
         self.bSmtpUseSsl = False
-        self.sFromEmail = 'notify@pydrone.com'
         self.aToEmailPerGroup = {}
+        self.__parseConfiguration()
 
     def run(self):
         logging.info('Starting email notifier')
@@ -46,14 +47,21 @@ class Mail(threading.Thread):
         else:
             self.sSmtpHost = aMailConfiguration['smtp']
 
-        if 'port' in aMailKeys:
-            self.iSmtpPort = aMailConfiguration['port']
+        if 'smtp_port' in aMailKeys:
+            self.iSmtpPort = aMailConfiguration['smtp_port']
         if 'login' in aMailKeys:
             self.sSmtpLogin = aMailConfiguration['login']
         if 'password' in aMailKeys:
             self.sSmtpPass = aMailConfiguration['password']
         if 'ssl' in aMailKeys:
             self.bSmtpUseSsl = bool(aMailConfiguration['ssl'])
+        # probe part
+        for sGroup, aGroupConfiguration in self.aConfiguration['probes'].iteritems():
+            if 'emailsToWarn' in aGroupConfiguration:
+                if sGroup not in self.aToEmailPerGroup:
+                    self.aToEmailPerGroup[sGroup] = []
+                self.aToEmailPerGroup[sGroup].extend(aGroupConfiguration['emailsToWarn'])
+        pprint(self.aToEmailPerGroup)
 
 
     def sendUpdate(self, oProbe):
@@ -74,31 +82,45 @@ class Mail(threading.Thread):
         """
 
         if len(self.aProbeUpdate) is 0:
-            logging.info('Nothing to push')
+            logging.info('[EMAIL] Nothing to push')
             return
 
-        sSubject = "PyDrone report"
-        sEmail = ['emailto@emailto.com']
 
-        sBody = ''
         for sGroup, aGroupOfReport in self.aProbeUpdate.iteritems():
+
+            logging.info('parsing  probe')
+            if sGroup not in self.aToEmailPerGroup.keys():
+                logging.info('Update on group '+sGroup+ ' but no mail contact for it')
+                continue
+            aEmail = self.aToEmailPerGroup[sGroup]
+
+            sSubject = "PyDrone report"
+            sBody = ''
             sBody += 'For the group '+sGroup+"\n"
             for aReport in aGroupOfReport:
                 sServerLine = 'Server '+aReport['server']+ ' switched to '+str(aReport['lastCode'])+"\n"
                 sBody += sServerLine
 
-        aMessage = MIMEText(sBody)
-        aMessage['Subject'] = sSubject
-        sPyDroneFromEmailAddress = 'notify@pydrone.com'
-        aMessage['From'] = self.sFromEmailAddress
-        aMessage['To'] = sEmail
-        sSmtpUrl = self.sSmtpHost + ':' + str(self.iSmtpPort)
-        oSender = smtplib.SMTP(sSmtpUrl)
-        if self.bSmtpUseSsl:
-            oSender.starttls()
-        if self.sSmtpLogin is not None and self.sSmtpPass is not None:
-            oSender.login(self.sSmtpLogin, self.sSmtpPass)
-        oSender.sendmail(self.sFromEmailAddress, [sEmail], aMessage.as_string())
+
+            aMessage = MIMEText(sBody)
+            aMessage['Subject'] = sSubject
+            aMessage['From'] = self.sFromEmailAddress
+            #aMessage['To'] = aEmail
+
+            sSmtpUrl = self.sSmtpHost + ':' + str(self.iSmtpPort)
+            logging.info(sSmtpUrl)
+            oSender = smtplib.SMTP(sSmtpUrl)
+            if self.bSmtpUseSsl:
+                oSender.starttls()
+
+            if self.sSmtpLogin is not None and self.sSmtpPass is not None:
+                oSender.login(self.sSmtpLogin, self.sSmtpPass)
+            logging.info('Sending email')
+
+            pprint(self.sFromEmailAddress)
+            pprint(aEmail)
+            pprint(aMessage.as_string())
+            oSender.sendmail(self.sFromEmailAddress, aEmail, aMessage.as_string())
 
 
     def transformProbeIntoReport(self, oProbe):
