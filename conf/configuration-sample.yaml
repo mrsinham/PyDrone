@@ -10,7 +10,7 @@ probes:
             emailsToWarn: [email@email.com]
             nmaToWarn: [xxxxxxxxxxxxxxxx]
 web:
-    url: my.host.of.pydrone
+    host: my.host.of.pydrone
     port: 1111
 mail:
      smtp: my.smtp.com
