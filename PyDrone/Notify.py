@@ -4,6 +4,7 @@ import logging
 import smtplib
 from email.mime.text import MIMEText
 from pprint import pprint
+import socket
 
 class Mail(threading.Thread):
 
@@ -22,10 +23,17 @@ class Mail(threading.Thread):
         self.sSmtpPass = None
         self.bSmtpUseSsl = False
         self.aToEmailPerGroup = {}
+        self.sBaseUrl = None
         self.__parseConfiguration()
+
+
 
     def run(self):
         logging.info('Starting email notifier')
+        if len(self.aToEmailPerGroup) is 0:
+            logging.info('No mail to warn, no need for email notifier, stopping it')
+            self.stop()
+
         while not self._stopevent.isSet():
             self.sendReport()
             self.aProbeUpdate = {}
@@ -36,7 +44,9 @@ class Mail(threading.Thread):
         self._stopevent.set()
 
     def __parseConfiguration(self):
-
+        """
+        Extract from the configuration the configuration for the mail notifier
+        """
         if 'mail' not in self.aConfiguration.keys():
             logging.info('"mail" section is not present in configuration')
             return False
@@ -61,7 +71,14 @@ class Mail(threading.Thread):
                 if sGroup not in self.aToEmailPerGroup:
                     self.aToEmailPerGroup[sGroup] = []
                 self.aToEmailPerGroup[sGroup].extend(aGroupConfiguration['emailsToWarn'])
-        pprint(self.aToEmailPerGroup)
+
+        if 'web' in self.aConfiguration.keys():
+            if 'host' in self.aConfiguration['web'].keys():
+                self.sBaseUrl = 'http://'+ self.aConfiguration['web']['host']
+            else:
+                self.sBaseUrl =  'http://'+socket.gethostname()
+            if 'port' in self.aConfiguration['web'].keys() and self.aConfiguration['web']['port'] != 80:
+                self.sBaseUrl += ':'+str(self.aConfiguration['web']['port'])
 
 
     def sendUpdate(self, oProbe):
@@ -82,13 +99,13 @@ class Mail(threading.Thread):
         """
 
         if len(self.aProbeUpdate) is 0:
-            logging.info('[EMAIL] Nothing to push')
             return
 
+        logging.info('[email] pushing waiting mails')
 
         for sGroup, aGroupOfReport in self.aProbeUpdate.iteritems():
 
-            logging.info('parsing  probe')
+
             if sGroup not in self.aToEmailPerGroup.keys():
                 logging.info('Update on group '+sGroup+ ' but no mail contact for it')
                 continue
@@ -102,24 +119,24 @@ class Mail(threading.Thread):
                 sBody += sServerLine
 
 
+            if self.sBaseUrl is not None:
+                sBody += "\n\n"
+                sBody += 'More info at '+self.sBaseUrl+"\n"
+
             aMessage = MIMEText(sBody)
             aMessage['Subject'] = sSubject
             aMessage['From'] = self.sFromEmailAddress
             #aMessage['To'] = aEmail
 
             sSmtpUrl = self.sSmtpHost + ':' + str(self.iSmtpPort)
-            logging.info(sSmtpUrl)
+
             oSender = smtplib.SMTP(sSmtpUrl)
             if self.bSmtpUseSsl:
                 oSender.starttls()
 
             if self.sSmtpLogin is not None and self.sSmtpPass is not None:
                 oSender.login(self.sSmtpLogin, self.sSmtpPass)
-            logging.info('Sending email')
-
-            pprint(self.sFromEmailAddress)
-            pprint(aEmail)
-            pprint(aMessage.as_string())
+            logging.info('Sending email for group : '+sGroup)
             oSender.sendmail(self.sFromEmailAddress, aEmail, aMessage.as_string())
 
 

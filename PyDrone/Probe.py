@@ -81,7 +81,6 @@ class ProbeBuilder:
                 oProbe.server = sEachServer
                 aProbes[sKey].append(oProbe)
                 self.iCurrentId+=1
-            print sKey
         return aProbes
 
 class ProbeLauncher:
