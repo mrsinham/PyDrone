@@ -12,7 +12,7 @@ class Mail(threading.Thread):
         threading.Thread.__init__(self)
         self.aProbeUpdate = {}
         self.aConfiguration = aConfiguration
-        self.sendEvery = 5
+        self.sendEvery = 2
         self.sFromEmailAddress = 'notify@pydrone.com'
         self._stopevent = threading.Event()
         self.bActive = True
@@ -111,12 +111,15 @@ class Mail(threading.Thread):
                 continue
             aEmail = self.aToEmailPerGroup[sGroup]
 
-            sSubject = "PyDrone report"
+            sSubject = "PyDrone update on : "+sGroup
             sBody = ''
-            sBody += 'For the group '+sGroup+"\n"
             for aReport in aGroupOfReport:
-                sServerLine = 'Server '+aReport['server']+ ' switched to '+str(aReport['lastCode'])+"\n"
-                sBody += sServerLine
+                sServerLine = aReport['lastChecked']+' : Server '+aReport['server']+ ' switched to '+str(aReport['lastCode'])+" and message "+aReport['lastMessage']+"\n"
+                if len(aReport['lastApplicationsOnFail']) is not 0:
+                    for sEachAppReport in aReport['lastApplicationsOnFail']:
+                        sServerLine += '=> ' +sEachAppReport + "\n"
+
+                sBody += sServerLine+"\n\n"
 
 
             if self.sBaseUrl is not None:
@@ -142,7 +145,17 @@ class Mail(threading.Thread):
 
     def transformProbeIntoReport(self, oProbe):
         assert isinstance(oProbe, Probe)
-        aReport = {'lastCode': oProbe.lastCode, 'server': oProbe.server}
+        aReport = {
+            'lastCode': oProbe.lastCode,
+            'server': oProbe.server,
+            'lastMessage': oProbe.lastMessage,
+            'lastChecked': oProbe.lastCheckFormated,
+            'lastApplicationsOnFail': []
+        }
+        for oEachApp in oProbe.lastApplications:
+            if oEachApp['code'] is not 200:
+                sAppFailed = 'App. '+oEachApp['name']+ ' had code '+str(oEachApp['code'])+ ' with message '+oEachApp['response']
+                aReport['lastApplicationsOnFail'].append(sAppFailed)
         return aReport
 
 
