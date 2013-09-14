@@ -7,7 +7,6 @@ import logging
 
 ############# Probe #################
 class Probe:
-
     def __init__(self):
         self.id = None
         self.name = None
@@ -19,6 +18,7 @@ class Probe:
         self.lastCode = None
         self.lastMessage = None
         self.checkEvery = None # Check every, in sec
+        self.lastContent = None
         self.lastApplications = []
         self.lastEnv = []
         self.running = False
@@ -26,31 +26,39 @@ class Probe:
 
     def __str__(self):
         aDict = {
-        'id' : self.id,
-        'name' : self.name,
-        'server' : self.server,
-        'lastCheck' : self.lastCheck,
-        'lastCheckFormated' : self.lastCheckFormated,
-        'lastCode' : self.lastCode,
-        'lastMessage' : self.lastMessage,
-        'lastApplications' : self.lastApplications,
-        'lastEnv' : self.lastEnv
+            'id': self.id,
+            'name': self.name,
+            'server': self.server,
+            'lastCheck': self.lastCheck,
+            'lastCheckFormated': self.lastCheckFormated,
+            'lastCode': self.lastCode,
+            'lastMessage': self.lastMessage,
+            'lastApplications': self.lastApplications,
+            'lastEnv': self.lastEnv
         }
         return json.dumps(aDict)
+
     def resetApplications(self):
         self.lastApplications = []
 
     def resetEnv(self):
         self.lastEnv = []
-    def addApplication(self, iApplicationCode, sApplicationName, sApplicationResponse):
-        aApplication = { 'code': iApplicationCode, 'name': sApplicationName, 'response': sApplicationResponse}
+
+    def addApplication(self, iApplicationCode, sApplicationName, sApplicationResponse, aRequest={}):
+        aApplication = {
+            'code': iApplicationCode,
+            'name': sApplicationName,
+            'response': sApplicationResponse,
+            'request': aRequest
+        }
         self.lastApplications.append(aApplication)
+
     def addEnvironment(self, sEnvName, mEnvValue):
-        aEnv = {'name':sEnvName, 'value':mEnvValue}
+        aEnv = {'name': sEnvName, 'value': mEnvValue}
         self.lastEnv.append(aEnv)
 
-class ProbeBuilder:
 
+class ProbeBuilder:
     def __init__(self):
         self.iCurrentId = 0
 
@@ -80,11 +88,11 @@ class ProbeBuilder:
                 oProbe.checkEvery = oEachProbe['checkEvery']
                 oProbe.server = sEachServer
                 aProbes[sKey].append(oProbe)
-                self.iCurrentId+=1
+                self.iCurrentId += 1
         return aProbes
 
-class ProbeLauncher:
 
+class ProbeLauncher:
     def __init__(self, oProbeEvent):
         self.oProbeEvent = oProbeEvent
 
@@ -99,8 +107,11 @@ class ProbeLauncher:
         iPreviousCode = oProbe.lastCode
         try:
             oResponse = urllib2.urlopen(oNewHttpRequest)
-            oProbeResult = json.load(oResponse)
-            self.receiveProbe(oProbeResult, oProbe)
+            try:
+                oProbeResult = json.load(oResponse)
+                self.receiveProbe(oProbeResult, oProbe)
+            except ValueError as e:
+                logging.warning('No json info, skipping parsing')
         except urllib2.HTTPError as e:
             oProbe.lastCode = e.code
             oProbe.lastMessage = e.reason
@@ -108,12 +119,14 @@ class ProbeLauncher:
             oProbe.lastCode = 500
             oProbe.lastMessage = e.reason
         oProbe.lastCheck = time()
+        oProbe.lastContent = oResponse
         oProbe.lastCheckFormated = datetime.datetime.fromtimestamp(oProbe.lastCheck).strftime('%d-%m-%Y %H:%M:%S')
         oProbe.running = False
-        logging.info('Checking server : '+oProbe.server+ ' from group : ' + oProbe.name + ' and got '+ str(oProbe.lastCode))
-        if iPreviousCode != None and oProbe.lastCode != iPreviousCode:
+        logging.info(
+            'Checking server : ' + oProbe.server + ' from group : ' + oProbe.name + ' and got ' + str(oProbe.lastCode))
+        if iPreviousCode is not None and oProbe.lastCode != iPreviousCode:
             # push probe to the event handler
-            logging.warning('Change of code from '+str(iPreviousCode)+' to '+str(oProbe.lastCode))
+            logging.warning('Change of code from ' + str(iPreviousCode) + ' to ' + str(oProbe.lastCode))
             self.oProbeEvent.pushProbeEvent(oProbe)
 
 
@@ -134,9 +147,12 @@ class ProbeLauncher:
             for aEachApp in oProbeResult['applications']:
                 aAppKeys = aEachApp.keys()
                 if 'code' in aAppKeys and 'name' in aAppKeys and 'response' in aAppKeys:
-                    oProbe.addApplication(aEachApp['code'], aEachApp['name'], aEachApp['response'])
+                    if 'request' in aAppKeys:
+                        aRequest = aEachApp['request']
+                    else:
+                        aRequest = {}
+                    oProbe.addApplication(aEachApp['code'], aEachApp['name'], aEachApp['response'], aRequest)
         if 'environment' in aKeys:
             aEnv = oProbeResult['environment']
             for sEnvName, mValue in aEnv.iteritems():
                 oProbe.addEnvironment(sEnvName, mValue)
-		
