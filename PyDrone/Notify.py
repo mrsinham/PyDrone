@@ -15,6 +15,8 @@ class BufferNotifier(threading.Thread):
         self.aProbeUpdate = {}
         self.aConfiguration = aConfiguration
         self.sendEvery = 2
+        self.oLogger = logging.getLogger('notifier')
+
         self._stopevent = threading.Event()
 
     def run(self):
@@ -25,7 +27,7 @@ class BufferNotifier(threading.Thread):
             self._stopevent.wait(self.sendEvery)
 
     def stop(self):
-        logging.info('Stopping notifier')
+        self.oLogger.info('stopping')
         self._stopevent.set()
 
     def sendUpdate(self, oProbe):
@@ -56,7 +58,6 @@ class BufferNotifier(threading.Thread):
             if oEachApp['code'] is not 200:
                 sAppFailed = 'App. ' + oEachApp['name'] + ' had code ' + str(oEachApp['code']) + ' with message ' +oEachApp['response']
                 if len(oEachApp['request']) > 0:
-                    pprint (oEachApp['request'])
                     sAppFailed += ' and request was '+json.dumps(oEachApp['request'])
                 aReport['lastApplicationsOnFail'].append(sAppFailed)
         return aReport
@@ -78,12 +79,13 @@ class Mail(BufferNotifier):
         self.bSmtpUseSsl = False
         self.aToEmailPerGroup = {}
         self.sBaseUrl = None
+        self.oLogger = self.oLogger.getChild('mail')
 
     def run(self):
         self.__parseConfiguration()
-        logging.info('Starting mail notifier')
+        self.oLogger.info('starting')
         if len(self.aToEmailPerGroup) is 0:
-            logging.info('No mail to warn, no need for email notifier, stopping it')
+            self.oLogger.info('No mail to warn, no need for email notifier, stopping it')
             self.stop()
         super(Mail, self).run()
 
@@ -92,10 +94,12 @@ class Mail(BufferNotifier):
         Extract from the configuration the configuration for the mail notifier
         """
         if 'mail' not in self.aConfiguration.keys():
-            logging.info('"mail" section is not present in configuration')
+            self.oLogger.info('"mail" section is not present in configuration')
             return False
         aMailConfiguration = self.aConfiguration['mail']
         aMailKeys = aMailConfiguration.keys()
+
+        # where is the mail server
         if 'smtp' not in aMailKeys:
             self.sSmtpHost = 'localhost'
         else:
@@ -103,19 +107,28 @@ class Mail(BufferNotifier):
 
         if 'smtp_port' in aMailKeys:
             self.iSmtpPort = aMailConfiguration['smtp_port']
+
+        # smtp authentification
         if 'login' in aMailKeys:
             self.sSmtpLogin = aMailConfiguration['login']
         if 'password' in aMailKeys:
             self.sSmtpPass = aMailConfiguration['password']
         if 'ssl' in aMailKeys:
             self.bSmtpUseSsl = bool(aMailConfiguration['ssl'])
-            # probe part
+
+        # probe part
         for sGroup, aGroupConfiguration in self.aConfiguration['probes'].iteritems():
             if 'emailsToWarn' in aGroupConfiguration:
                 if sGroup not in self.aToEmailPerGroup:
                     self.aToEmailPerGroup[sGroup] = []
                 self.aToEmailPerGroup[sGroup].extend(aGroupConfiguration['emailsToWarn'])
 
+        # when to send it
+        if 'sendEvery' in aMailKeys:
+            self.sendEvery = aMailConfiguration['sendEvery']
+            self.oLogger.info('Sending every '+str(self.sendEvery) + 's')
+
+        # where is the main interface ?
         if 'web' in self.aConfiguration.keys():
             if 'host' in self.aConfiguration['web'].keys():
                 self.sBaseUrl = 'http://' + self.aConfiguration['web']['host']
@@ -149,11 +162,11 @@ class Mail(BufferNotifier):
             oSender.starttls()
         if self.sSmtpLogin is not None and self.sSmtpPass is not None:
             oSender.login(self.sSmtpLogin, self.sSmtpPass)
-        logging.info('Sending email for group : ' + sGroup)
+        self.oLogger.info('Sending email for group : ' + sGroup)
         try:
             oSender.sendmail(self.sFromEmailAddress, aEmail, aMessage.as_string())
         except Exception as e:
-            logging.error('Unable to send mail : ' + e.message)
+            self.oLogger.error('Unable to send mail : ' + e.message)
 
     def sendReport(self):
         """
@@ -163,13 +176,24 @@ class Mail(BufferNotifier):
         if len(self.aProbeUpdate) is 0:
             return
 
-        logging.info('[email] pushing waiting mails')
+        self.oLogger.info('pushing waiting mails')
 
         for sGroup, aGroupOfReport in self.aProbeUpdate.iteritems():
             if sGroup not in self.aToEmailPerGroup.keys():
-                logging.info('Update on group ' + sGroup + ' but no mail contact for it')
+                self.oLogger.info('update on group ' + sGroup + ' but no mail contact for it')
                 continue
             self.__sendMailToGroup(aGroupOfReport, sGroup)
 
+
+
+class NMA(BufferNotifier):
+
+
+    def __parseConfiguration(self):
+        pass
+
+
+    def sendReport(self):
+        pass
 
 

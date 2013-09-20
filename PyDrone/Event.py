@@ -5,6 +5,7 @@ class ProbeEvent:
 
     def __init__(self):
         self.aListener = set()
+        self.oLogger = logging.getLogger('probe.event')
 
     def addListener(self, oListener):
         self.aListener.add(oListener)
@@ -14,5 +15,5 @@ class ProbeEvent:
 
     def pushProbeEvent(self, oProbe):
         for oEachListener in self.aListener:
-            logging.info('push to listener')
+            self.oLogger.info('push to listener')
             oEachListener.sendUpdate(oProbe)

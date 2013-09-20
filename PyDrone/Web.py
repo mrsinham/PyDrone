@@ -15,6 +15,7 @@ class WebLauncher:
         self.template_root = os.path.join(sRootDir, 'templates')
         self.aConfiguration = aConfiguration
         self.blacklist_templates = ('layouts',)
+        self.oLogger = logging.getLogger('web')
         self.template_lookup = TemplateLookup(input_encoding='utf-8',
             output_encoding='utf-8',
             encoding_errors='replace',
@@ -37,7 +38,7 @@ class WebLauncher:
 
     def start(self):
         iPort = self.getPort()
-        logging.info('Starting web server on port '+ str(iPort))
+        self.oLogger.info('starting on port '+ str(iPort))
         self.oApplication.listen(iPort)
         tornado.ioloop.IOLoop.instance().start()
 
@@ -86,13 +87,15 @@ class MonitorWebsocket(tornado.websocket.WebSocketHandler):
     waiters = set()
 
     def initialize(self, oEvent):
-        logging.info('a websocket client has connected')
+        self.oLogger = logging.getLogger('web.websocket')
+        self.oLogger.info('a websocket client has connected')
         self.oEvent = oEvent
+
         oEvent.addListener(self)
 
     def open(self):
         MonitorWebsocket.waiters.add(self)
-        logging.info('New client connected. ('+self.getNbClientFormated()+')')
+        self.oLogger.debug('client connected. ('+self.getNbClientFormated()+')')
         self.sendClientNbUpdate()
 
     def getNbClient(self):
@@ -108,7 +111,7 @@ class MonitorWebsocket(tornado.websocket.WebSocketHandler):
         MonitorWebsocket.waiters.remove(self)
         self.oEvent.removeListener(self)
         self.sendClientNbUpdate()
-        logging.info('Client leaves. ('+self.getNbClientFormated()+')')
+        self.oLogger.info('client leaves. ('+self.getNbClientFormated()+')')
 
     def sendMessageToAllClients(self, sType, sMessage):
         for oEachWaiters in MonitorWebsocket.waiters:

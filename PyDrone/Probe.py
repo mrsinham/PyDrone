@@ -92,9 +92,10 @@ class ProbeBuilder:
         return aProbes
 
 
-class ProbeLauncher:
+class ProbeMonitor:
     def __init__(self, oProbeEvent):
         self.oProbeEvent = oProbeEvent
+        self.oLogger = logging.getLogger('probe.monitor')
 
     def sendProbe(self, oProbe):
         assert isinstance(oProbe, Probe)
@@ -107,11 +108,12 @@ class ProbeLauncher:
         iPreviousCode = oProbe.lastCode
         try:
             oResponse = urllib2.urlopen(oNewHttpRequest)
+            oProbe.lastContent = oResponse
             try:
                 oProbeResult = json.load(oResponse)
                 self.receiveProbe(oProbeResult, oProbe)
             except ValueError as e:
-                logging.warning('No json info, skipping parsing')
+                self.oLogger.warning('No json info, skipping parsing')
         except urllib2.HTTPError as e:
             oProbe.lastCode = e.code
             oProbe.lastMessage = e.reason
@@ -119,14 +121,14 @@ class ProbeLauncher:
             oProbe.lastCode = 500
             oProbe.lastMessage = e.reason
         oProbe.lastCheck = time()
-        oProbe.lastContent = oResponse
+
         oProbe.lastCheckFormated = datetime.datetime.fromtimestamp(oProbe.lastCheck).strftime('%d-%m-%Y %H:%M:%S')
         oProbe.running = False
-        logging.info(
-            'Checking server : ' + oProbe.server + ' from group : ' + oProbe.name + ' and got ' + str(oProbe.lastCode))
+        self.oLogger.debug(
+            'checking ' + oProbe.server + ' from group : ' + oProbe.name + ' and got ' + str(oProbe.lastCode))
         if iPreviousCode is not None and oProbe.lastCode != iPreviousCode:
             # push probe to the event handler
-            logging.warning('Change of code from ' + str(iPreviousCode) + ' to ' + str(oProbe.lastCode))
+            self.oLogger.warning('['+oProbe.name+'] '+oProbe.server + ' change of code from ' + str(iPreviousCode) + ' to ' + str(oProbe.lastCode))
             self.oProbeEvent.pushProbeEvent(oProbe)
 
 
