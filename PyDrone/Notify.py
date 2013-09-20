@@ -83,7 +83,7 @@ class Mail(BufferNotifier):
 
     def run(self):
         self.__parseConfiguration()
-        self.oLogger.info('starting')
+        self.oLogger.info('started')
         if len(self.aToEmailPerGroup) is 0:
             self.oLogger.info('No mail to warn, no need for email notifier, stopping it')
             self.stop()
@@ -126,7 +126,7 @@ class Mail(BufferNotifier):
         # when to send it
         if 'sendEvery' in aMailKeys:
             self.sendEvery = aMailConfiguration['sendEvery']
-            self.oLogger.info('Sending every '+str(self.sendEvery) + 's')
+            self.oLogger.debug('sending every '+str(self.sendEvery) + 's')
 
         # where is the main interface ?
         if 'web' in self.aConfiguration.keys():

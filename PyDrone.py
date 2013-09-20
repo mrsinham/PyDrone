@@ -4,6 +4,7 @@ from PyDrone.Web import WebLauncher
 from PyDrone.Event import ProbeEvent
 from PyDrone.Monitor import Scheduler
 from PyDrone.Notify import Mail as MailNotifier
+import pprint
 
 
 class PyDrone:
@@ -17,9 +18,10 @@ class PyDrone:
     def __parseCmdLine(self, sLoggingFormat):
         oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
         oParser.add_argument('--conf', help='Configuraton file path')
+        oParser.add_argument('--debug', action="store_const", const=True, help='enable debug mode')
         oArguments = oParser.parse_args()
-        logging.basicConfig(level=logging.INFO, format=sLoggingFormat)
-        self.oLogger = logging.getLogger('pydrone')
+        #logging.basicConfig(level=logging.INFO, format=sLoggingFormat)
+
         if oArguments.conf is None:
             oParser.print_help()
             exit(1)
@@ -28,8 +30,13 @@ class PyDrone:
             oParser.print_help()
             exit(1)
         else:
+            if oArguments.debug:
+                logging.basicConfig(level=logging.DEBUG, format=sLoggingFormat)
+            else:
+                logging.basicConfig(level=logging.INFO, format=sLoggingFormat)
+            self.oLogger = logging.getLogger('pydrone')
             sConfigurationFile = oArguments.conf
-            self.oLogger.info('reading configuration file '+os.getcwd() + '/'+ sConfigurationFile)
+            self.oLogger.debug('reading configuration file '+os.getcwd() + '/'+ sConfigurationFile)
             return sConfigurationFile
 
     def __startWebServer(self):
@@ -47,9 +54,9 @@ class PyDrone:
 
 
     def start(self):
-        sLoggingFormat = '%(asctime)-15s [%(name)s] %(message)s - %(levelname)s'
+        sLoggingFormat = '%(asctime)-15s - %(name)-20s - %(message)s - %(levelname)s'
         sConfigurationFile = self.__parseCmdLine(sLoggingFormat)
-        self.oLogger.info('starting')
+        self.oLogger.info('started')
         oStream = file(sConfigurationFile, 'r')
         self.oConfiguration = yaml.load(oStream)
 

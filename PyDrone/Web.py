@@ -38,7 +38,7 @@ class WebLauncher:
 
     def start(self):
         iPort = self.getPort()
-        self.oLogger.info('starting on port '+ str(iPort))
+        self.oLogger.info('started on port '+ str(iPort))
         self.oApplication.listen(iPort)
         tornado.ioloop.IOLoop.instance().start()
 
