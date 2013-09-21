@@ -11,7 +11,7 @@ class Scheduler(threading.Thread):
         self.oProbeEvent = oProbeEvent
         self.aListOfProbes = aListOfProbes
         self.bRunning = True
-        self.oLogger = logging.getLogger('pydrone.scheduler')
+        self.oLogger = logging.getLogger('pydrone').getChild('scheduler')
         self._stopevent = threading.Event()
     def run(self):
         while not self._stopevent.isSet():

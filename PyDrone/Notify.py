@@ -15,7 +15,7 @@ class BufferNotifier(threading.Thread):
         self.aProbeUpdate = {}
         self.aConfiguration = aConfiguration
         self.sendEvery = 2
-        self.oLogger = logging.getLogger('notifier')
+        self.oLogger = logging.getLogger('pydrone').getChild('notify')
 
         self._stopevent = threading.Event()
 
@@ -187,7 +187,6 @@ class Mail(BufferNotifier):
 
 
 class NMA(BufferNotifier):
-
 
     def __parseConfiguration(self):
         pass

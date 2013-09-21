@@ -4,6 +4,7 @@ from PyDrone.Web import WebLauncher
 from PyDrone.Event import ProbeEvent
 from PyDrone.Monitor import Scheduler
 from PyDrone.Notify import Mail as MailNotifier
+import logging.handlers
 import pprint
 
 
@@ -19,6 +20,7 @@ class PyDrone:
         oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
         oParser.add_argument('--conf', help='Configuraton file path')
         oParser.add_argument('--debug', action="store_const", const=True, help='enable debug mode')
+        oParser.add_argument('--log', help='log into file')
         oArguments = oParser.parse_args()
         #logging.basicConfig(level=logging.INFO, format=sLoggingFormat)
 
@@ -34,7 +36,15 @@ class PyDrone:
                 logging.basicConfig(level=logging.DEBUG, format=sLoggingFormat)
             else:
                 logging.basicConfig(level=logging.INFO, format=sLoggingFormat)
+
             self.oLogger = logging.getLogger('pydrone')
+            if oArguments.log is not None:
+                # log into file
+                oFileHandler = logging.handlers.RotatingFileHandler(oArguments.log, maxBytes=20000, backupCount=20)
+                oFileFormatter = logging.Formatter(sLoggingFormat)
+                oFileHandler.setFormatter(oFileFormatter)
+                self.oLogger.addHandler(oFileHandler)
+
             sConfigurationFile = oArguments.conf
             self.oLogger.debug('reading configuration file '+os.getcwd() + '/'+ sConfigurationFile)
             return sConfigurationFile

@@ -10,7 +10,7 @@ class Probe:
     def __init__(self):
         self.id = None
         self.name = None
-        self.connectTimeout = None
+        self.timeout = None
         self.executionTimeout = None
         self.server = None
         self.lastCheck = None
@@ -73,7 +73,6 @@ class ProbeBuilder:
                 aProbes[sKey] = []
             assert isinstance(sProbeName, str)
             assert isinstance(oEachProbe['url'], str)
-            assert isinstance(oEachProbe['connectTimeout'], int)
             assert isinstance(oEachProbe['executionTimeout'], int)
             assert isinstance(oEachProbe['checkEvery'], float)
             assert isinstance(oEachProbe['servers'], list)
@@ -83,7 +82,8 @@ class ProbeBuilder:
                 oProbe.id = self.iCurrentId
                 oProbe.name = sProbeName
                 oProbe.url = oEachProbe['url']
-                oProbe.connectTimeout = oEachProbe['connectTimeout']
+                if 'timeout' in oEachProbe.keys():
+                    oProbe.timeout = oEachProbe['timeout']
                 oProbe.executionTimeout = oEachProbe['executionTimeout']
                 oProbe.checkEvery = oEachProbe['checkEvery']
                 oProbe.server = sEachServer
@@ -95,7 +95,7 @@ class ProbeBuilder:
 class ProbeMonitor:
     def __init__(self, oProbeEvent):
         self.oProbeEvent = oProbeEvent
-        self.oLogger = logging.getLogger('probe.monitor')
+        self.oLogger = logging.getLogger('pydrone').getChild('probe').getChild('monitor')
 
     def sendProbe(self, oProbe):
         assert isinstance(oProbe, Probe)
@@ -107,7 +107,11 @@ class ProbeMonitor:
         oNewHttpRequest = urllib2.Request(sNewUrl, None, {'Host': oUrl.netloc})
         iPreviousCode = oProbe.lastCode
         try:
-            oResponse = urllib2.urlopen(oNewHttpRequest)
+            if oProbe.timeout is not None:
+                iTimeout = oProbe.timeout
+            else:
+                iTimeout = 5
+            oResponse = urllib2.urlopen(oNewHttpRequest, timeout=iTimeout)
             oProbe.lastContent = oResponse
             try:
                 oProbeResult = json.load(oResponse)

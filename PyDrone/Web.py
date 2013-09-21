@@ -15,7 +15,7 @@ class WebLauncher:
         self.template_root = os.path.join(sRootDir, 'templates')
         self.aConfiguration = aConfiguration
         self.blacklist_templates = ('layouts',)
-        self.oLogger = logging.getLogger('web')
+        self.oLogger = logging.getLogger('pydrone').getChild('web')
         self.template_lookup = TemplateLookup(input_encoding='utf-8',
             output_encoding='utf-8',
             encoding_errors='replace',
@@ -87,7 +87,7 @@ class MonitorWebsocket(tornado.websocket.WebSocketHandler):
     waiters = set()
 
     def initialize(self, oEvent):
-        self.oLogger = logging.getLogger('web.websocket')
+        self.oLogger = logging.getLogger('pydrone').getChild('web').getChild('websocket')
         self.oLogger.info('a websocket client has connected')
         self.oEvent = oEvent
 
