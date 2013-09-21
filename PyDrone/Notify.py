@@ -20,7 +20,7 @@ class BufferNotifier(threading.Thread):
         self._stopevent = threading.Event()
 
     def run(self):
-        self.oLogger.info('started')
+        self.oLogger.debug('started')
         self.parseConfiguration()
         while not self._stopevent.isSet():
             self.sendReport()
@@ -28,7 +28,7 @@ class BufferNotifier(threading.Thread):
             self._stopevent.wait(self.sendEvery)
 
     def stop(self):
-        self.oLogger.info('stopping')
+        self.oLogger.debug('stopping')
         self._stopevent.set()
 
     def sendUpdate(self, oProbe):

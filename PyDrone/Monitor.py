@@ -22,5 +22,5 @@ class Scheduler(threading.Thread):
                         oEngine.sendProbe(oEachProbe)
             self._stopevent.wait(0.5)
     def stop(self):
-        self.oLogger.info('stopping scheduler')
+        self.oLogger.debug('stopping')
         self._stopevent.set()
