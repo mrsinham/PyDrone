@@ -207,7 +207,6 @@ class NMA(BufferNotifier):
     def run(self):
         try:
             import pynma
-            self.oLogger.info('rezjrzejrze')
             super(NMA, self).run()
         except ImportError:
             self.oLogger.info('No nma module available, stopping')

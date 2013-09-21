@@ -3,7 +3,7 @@ from PyDrone.Probe import Probe, ProbeBuilder,ProbeMonitor
 from PyDrone.Web import WebLauncher
 from PyDrone.Event import ProbeEvent
 from PyDrone.Monitor import Scheduler
-from PyDrone.Notify import Mail as MailNotifier, NMA as NMANotifier
+from PyDrone.Notify import Mail as MailNotifier, NMA as NMANotifier, BufferNotifier as Notifier
 import logging.handlers
 import traceback
 import pprint
@@ -15,6 +15,7 @@ class PyDrone:
         self.oConfiguration = None
         self.aListOfProbes = None
         self.oProbeEvent = ProbeEvent()
+        self.aThreads = []
 
 
     def __parseCmdLine(self, sLoggingFormat):
@@ -59,17 +60,14 @@ class PyDrone:
 
     def __startMonitor(self):
         self.oScheduler = Scheduler('MainScheduler', self.aListOfProbes, self.oProbeEvent)
+        self.aThreads.append(self.oScheduler)
         self.oScheduler.start()
 
-    def __startMailNotifier(self):
-        self.oMailNotifier = MailNotifier(self.oConfiguration)
-        self.oProbeEvent.addListener(self.oMailNotifier)
-        self.oMailNotifier.start()
-
-    def __startNMANotifier(self):
-        self.oNmaNotifier = NMANotifier(self.oConfiguration)
-        self.oProbeEvent.addListener(self.oNmaNotifier)
-        self.oNmaNotifier.start()
+    def __addNotifier(self, oNotifier):
+        assert isinstance(oNotifier, Notifier)
+        self.oProbeEvent.addListener(oNotifier)
+        self.aThreads.append(oNotifier)
+        oNotifier.start()
 
     def __readConf(self, sConfigurationFile):
         oStream = file(sConfigurationFile, 'r')
@@ -86,8 +84,8 @@ class PyDrone:
 
         try:
             self.__startMonitor()
-            self.__startMailNotifier()
-            self.__startNMANotifier()
+            self.__addNotifier(MailNotifier(self.oConfiguration))
+            self.__addNotifier(NMANotifier(self.oConfiguration))
             self.__startWebServer()
         except Exception as e:
             self.oLogger.error(traceback.format_exc(e))
@@ -97,8 +95,8 @@ class PyDrone:
             self.oLogger.info('system says to halt')
         finally:
             self.oLogger.info('shutdown..')
-            self.oScheduler.stop()
-            self.oMailNotifier.stop()
+            for oThread in self.aThreads:
+                oThread.stop()
 
 __author__ = 'Julien Lefevre'
 
