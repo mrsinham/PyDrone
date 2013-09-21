@@ -20,7 +20,8 @@ class BufferNotifier(threading.Thread):
         self._stopevent = threading.Event()
 
     def run(self):
-        self.__parseConfiguration()
+        self.oLogger.info('started')
+        self.parseConfiguration()
         while not self._stopevent.isSet():
             self.sendReport()
             self.aProbeUpdate = {}
@@ -45,6 +46,22 @@ class BufferNotifier(threading.Thread):
     def sendReport(self):
         pass
 
+    def sendReport(self):
+        """
+        Sending report to the notified emails
+        """
+
+        if len(self.aProbeUpdate) is 0:
+            return
+
+        self.oLogger.info('pushing waiting reports')
+
+        for sGroup, aGroupOfReport in self.aProbeUpdate.iteritems():
+            self.pushGroupReport(sGroup, aGroupOfReport)
+
+    def pushGroupReport(self, sGroup, aGroupOfReport):
+        pass
+
     def transformProbeIntoReport(self, oProbe):
         assert isinstance(oProbe, Probe)
         aReport = {
@@ -62,7 +79,12 @@ class BufferNotifier(threading.Thread):
                 aReport['lastApplicationsOnFail'].append(sAppFailed)
         return aReport
 
-    def __parseConfiguration(self):
+    def parseConfiguration(self):
+        # probe part
+        for sGroup, aGroupConfiguration in self.aConfiguration['probes'].iteritems():
+            self.parseProbeNotifyConfiguration(sGroup, aGroupConfiguration)
+
+    def parseProbeNotifyConfiguration(self, sGroupName, aGroupeConfiguration):
         pass
 
 class Mail(BufferNotifier):
@@ -82,17 +104,13 @@ class Mail(BufferNotifier):
         self.oLogger = self.oLogger.getChild('mail')
 
     def run(self):
-        self.__parseConfiguration()
-        self.oLogger.info('started')
-        if len(self.aToEmailPerGroup) is 0:
-            self.oLogger.info('No mail to warn, no need for email notifier, stopping it')
-            self.stop()
         super(Mail, self).run()
 
-    def __parseConfiguration(self):
+    def parseConfiguration(self):
         """
         Extract from the configuration the configuration for the mail notifier
         """
+        super(Mail, self).parseConfiguration()
         if 'mail' not in self.aConfiguration.keys():
             self.oLogger.info('"mail" section is not present in configuration')
             return False
@@ -116,13 +134,6 @@ class Mail(BufferNotifier):
         if 'ssl' in aMailKeys:
             self.bSmtpUseSsl = bool(aMailConfiguration['ssl'])
 
-        # probe part
-        for sGroup, aGroupConfiguration in self.aConfiguration['probes'].iteritems():
-            if 'emailsToWarn' in aGroupConfiguration:
-                if sGroup not in self.aToEmailPerGroup:
-                    self.aToEmailPerGroup[sGroup] = []
-                self.aToEmailPerGroup[sGroup].extend(aGroupConfiguration['emailsToWarn'])
-
         # when to send it
         if 'sendEvery' in aMailKeys:
             self.sendEvery = aMailConfiguration['sendEvery']
@@ -137,7 +148,21 @@ class Mail(BufferNotifier):
             if 'port' in self.aConfiguration['web'].keys() and self.aConfiguration['web']['port'] != 80:
                 self.sBaseUrl += ':' + str(self.aConfiguration['web']['port'])
 
-    def __sendMailToGroup(self, aGroupOfReport, sGroup):
+        if len(self.aToEmailPerGroup) is 0:
+            self.oLogger.info('No mail to warn, no need for email notifier, stopping it')
+            self.stop()
+
+    def parseProbeNotifyConfiguration(self, sGroupName, aGroupConfiguration):
+        if 'emailsToWarn' in aGroupConfiguration:
+            if sGroupName not in self.aToEmailPerGroup:
+                self.aToEmailPerGroup[sGroupName] = []
+            self.aToEmailPerGroup[sGroupName].extend(aGroupConfiguration['emailsToWarn'])
+
+
+    def pushGroupReport(self, sGroup, aGroupOfReport):
+        if sGroup not in self.aToEmailPerGroup.keys():
+            self.oLogger.info('update on group ' + sGroup + ' but no mail contact for it')
+            return
         aEmail = self.aToEmailPerGroup[sGroup]
         sSubject = "PyDrone update on : " + sGroup
         sBody = ''
@@ -168,31 +193,58 @@ class Mail(BufferNotifier):
         except Exception as e:
             self.oLogger.error('Unable to send mail : ' + e.message)
 
-    def sendReport(self):
-        """
-        Sending report to the notified emails
-        """
-
-        if len(self.aProbeUpdate) is 0:
-            return
-
-        self.oLogger.info('pushing waiting mails')
-
-        for sGroup, aGroupOfReport in self.aProbeUpdate.iteritems():
-            if sGroup not in self.aToEmailPerGroup.keys():
-                self.oLogger.info('update on group ' + sGroup + ' but no mail contact for it')
-                continue
-            self.__sendMailToGroup(aGroupOfReport, sGroup)
-
-
 
 class NMA(BufferNotifier):
+    """
+    Notify my Android notifications
+    http://www.notifymyandroid.com/
+    """
+    def __init__(self, aConfiguration):
+        super(NMA, self).__init__(aConfiguration)
+        self.aNmaByGroup = {}
+        self.oLogger = self.oLogger.getChild('nma')
 
-    def __parseConfiguration(self):
-        pass
+    def run(self):
+        try:
+            import pynma
+            self.oLogger.info('rezjrzejrze')
+            super(NMA, self).run()
+        except ImportError:
+            self.oLogger.info('No nma module available, stopping')
+            self.stop()
+
+    def parseConfiguration(self):
+        super(NMA, self).parseConfiguration()
+        if len(self.aNmaByGroup) is 0:
+            self.oLogger.info('No nma to warn, stopping')
+            self.stop()
+            exit(0)
 
 
-    def sendReport(self):
-        pass
+    def parseProbeNotifyConfiguration(self, sGroupName, aGroupConfiguration):
+        if 'nmaToWarn' in aGroupConfiguration:
+            if sGroupName not in self.aNmaByGroup:
+                self.aNmaByGroup[sGroupName] = []
+            self.aNmaByGroup[sGroupName].extend(aGroupConfiguration['nmaToWarn'])
+
+
+    def pushGroupReport(self, sGroup, aGroupOfReport):
+        sApplication = 'PyDrone'
+        sEvent = 'Change'
+        sMessage = 'in '+sGroup+' :'
+
+        for aEachReport in aGroupOfReport:
+            sMessage += aEachReport['server']+' is '+str(aEachReport['lastCode']) + " - "
+
+        aNmaToWarn = self.aNmaByGroup[sGroup]
+        import pynma
+        oNma = pynma.PyNMA(aNmaToWarn)
+        oNma.push(sApplication, sEvent, sMessage)
+
+
+
+
+
+
 
 

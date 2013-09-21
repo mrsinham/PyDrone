@@ -3,8 +3,9 @@ from PyDrone.Probe import Probe, ProbeBuilder,ProbeMonitor
 from PyDrone.Web import WebLauncher
 from PyDrone.Event import ProbeEvent
 from PyDrone.Monitor import Scheduler
-from PyDrone.Notify import Mail as MailNotifier
+from PyDrone.Notify import Mail as MailNotifier, NMA as NMANotifier
 import logging.handlers
+import traceback
 import pprint
 
 
@@ -17,12 +18,14 @@ class PyDrone:
 
 
     def __parseCmdLine(self, sLoggingFormat):
+        """
+        Parsing the input the program
+        """
         oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
         oParser.add_argument('--conf', help='Configuraton file path')
         oParser.add_argument('--debug', action="store_const", const=True, help='enable debug mode')
         oParser.add_argument('--log', help='log into file')
         oArguments = oParser.parse_args()
-        #logging.basicConfig(level=logging.INFO, format=sLoggingFormat)
 
         if oArguments.conf is None:
             oParser.print_help()
@@ -32,6 +35,7 @@ class PyDrone:
             oParser.print_help()
             exit(1)
         else:
+            # debug mode
             if oArguments.debug:
                 logging.basicConfig(level=logging.DEBUG, format=sLoggingFormat)
             else:
@@ -62,22 +66,31 @@ class PyDrone:
         self.oProbeEvent.addListener(self.oMailNotifier)
         self.oMailNotifier.start()
 
+    def __startNMANotifier(self):
+        self.oNmaNotifier = NMANotifier(self.oConfiguration)
+        self.oProbeEvent.addListener(self.oNmaNotifier)
+        self.oNmaNotifier.start()
+
+    def __readConf(self, sConfigurationFile):
+        oStream = file(sConfigurationFile, 'r')
+        self.oConfiguration = yaml.load(oStream)
 
     def start(self):
         sLoggingFormat = '%(asctime)-15s - %(name)-20s - %(message)s - %(levelname)s'
         sConfigurationFile = self.__parseCmdLine(sLoggingFormat)
         self.oLogger.info('started')
-        oStream = file(sConfigurationFile, 'r')
-        self.oConfiguration = yaml.load(oStream)
+        self.__readConf(sConfigurationFile)
 
         oProbeBuilder = ProbeBuilder()
         self.aListOfProbes = oProbeBuilder.buildProbesFromConfiguration(self.oConfiguration)
-        self.__startMonitor()
-        self.__startMailNotifier()
+
         try:
+            self.__startMonitor()
+            self.__startMailNotifier()
+            self.__startNMANotifier()
             self.__startWebServer()
-        except (__builtins__.Exception, __builtins__.SystemExit) as e:
-            self.oLogger.error(e)
+        except Exception as e:
+            self.oLogger.error(traceback.format_exc(e))
         except KeyboardInterrupt as e:
             self.oLogger.info('user stopping')
         except SystemExit as e:
