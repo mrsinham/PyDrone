@@ -9,7 +9,6 @@ import json
 
 
 class BufferNotifier(threading.Thread):
-
     def __init__(self, aConfiguration):
         threading.Thread.__init__(self)
         self.aProbeUpdate = {}
@@ -73,9 +72,10 @@ class BufferNotifier(threading.Thread):
         }
         for oEachApp in oProbe.lastApplications:
             if oEachApp['code'] is not 200:
-                sAppFailed = 'App. ' + oEachApp['name'] + ' had code ' + str(oEachApp['code']) + ' with message ' +oEachApp['response']
+                sAppFailed = 'App. ' + oEachApp['name'] + ' had code ' + str(oEachApp['code']) + ' with message ' + \
+                             oEachApp['response']
                 if len(oEachApp['request']) > 0:
-                    sAppFailed += ' and request was '+json.dumps(oEachApp['request'])
+                    sAppFailed += ' and request was ' + json.dumps(oEachApp['request'])
                 aReport['lastApplicationsOnFail'].append(sAppFailed)
         return aReport
 
@@ -86,6 +86,7 @@ class BufferNotifier(threading.Thread):
 
     def parseProbeNotifyConfiguration(self, sGroupName, aGroupeConfiguration):
         pass
+
 
 class Mail(BufferNotifier):
     def __init__(self, aConfiguration):
@@ -137,7 +138,7 @@ class Mail(BufferNotifier):
         # when to send it
         if 'sendEvery' in aMailKeys:
             self.sendEvery = aMailConfiguration['sendEvery']
-            self.oLogger.debug('sending every '+str(self.sendEvery) + 's')
+            self.oLogger.debug('sending every ' + str(self.sendEvery) + 's')
 
         # where is the main interface ?
         if 'web' in self.aConfiguration.keys():
@@ -161,7 +162,7 @@ class Mail(BufferNotifier):
 
     def pushGroupReport(self, sGroup, aGroupOfReport):
         if sGroup not in self.aToEmailPerGroup.keys():
-            self.oLogger.info('update on group ' + sGroup + ' but no mail contact for it')
+            self.oLogger.debug('update on group ' + sGroup + ' but no mail contact for it')
             return
         aEmail = self.aToEmailPerGroup[sGroup]
         sSubject = "PyDrone update on : " + sGroup
@@ -180,7 +181,6 @@ class Mail(BufferNotifier):
         aMessage = MIMEText(sBody)
         aMessage['Subject'] = sSubject
         aMessage['From'] = self.sFromEmailAddress
-        #aMessage['To'] = aEmail
         sSmtpUrl = self.sSmtpHost + ':' + str(self.iSmtpPort)
         oSender = smtplib.SMTP(sSmtpUrl)
         if self.bSmtpUseSsl:
@@ -199,6 +199,7 @@ class NMA(BufferNotifier):
     Notify my Android notifications
     http://www.notifymyandroid.com/
     """
+
     def __init__(self, aConfiguration):
         super(NMA, self).__init__(aConfiguration)
         self.aNmaByGroup = {}
@@ -219,24 +220,28 @@ class NMA(BufferNotifier):
             self.stop()
             exit(0)
 
-
     def parseProbeNotifyConfiguration(self, sGroupName, aGroupConfiguration):
         if 'nmaToWarn' in aGroupConfiguration:
             if sGroupName not in self.aNmaByGroup:
                 self.aNmaByGroup[sGroupName] = []
             self.aNmaByGroup[sGroupName].extend(aGroupConfiguration['nmaToWarn'])
 
-
     def pushGroupReport(self, sGroup, aGroupOfReport):
+
+        if sGroup not in self.aNmaByGroup.keys():
+            self.oLogger.debug('no nma action for group '+sGroup)
+            return
+
         sApplication = 'PyDrone'
         sEvent = 'Change'
-        sMessage = 'in '+sGroup+' :'
+        sMessage = 'in ' + sGroup + ' :'
 
         for aEachReport in aGroupOfReport:
-            sMessage += aEachReport['server']+' is '+str(aEachReport['lastCode']) + " - "
+            sMessage += aEachReport['server'] + ' is ' + str(aEachReport['lastCode']) + " - "
 
         aNmaToWarn = self.aNmaByGroup[sGroup]
         import pynma
+
         oNma = pynma.PyNMA(aNmaToWarn)
         oNma.push(sApplication, sEvent, sMessage)
 
