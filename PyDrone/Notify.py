@@ -20,7 +20,10 @@ class BufferNotifier(threading.Thread):
 
     def run(self):
         self.oLogger.debug('started')
-        self.parseConfiguration()
+        if not self.parseConfiguration():
+            self.oLogger.debug('no conf available')
+            self.stop()
+            return
         while not self._stopevent.isSet():
             self.sendReport()
             self.aProbeUpdate = {}
@@ -187,11 +190,11 @@ class Mail(BufferNotifier):
             oSender.starttls()
         if self.sSmtpLogin is not None and self.sSmtpPass is not None:
             oSender.login(self.sSmtpLogin, self.sSmtpPass)
-        self.oLogger.info('Sending email for group : ' + sGroup)
+        self.oLogger.info('sending email for group : ' + sGroup)
         try:
             oSender.sendmail(self.sFromEmailAddress, aEmail, aMessage.as_string())
         except Exception as e:
-            self.oLogger.error('Unable to send mail : ' + e.message)
+            self.oLogger.error('unable to send mail : ' + e.message)
 
 
 class NMA(BufferNotifier):
@@ -210,13 +213,13 @@ class NMA(BufferNotifier):
             import pynma
             super(NMA, self).run()
         except ImportError:
-            self.oLogger.info('No nma module available, stopping')
+            self.oLogger.info('No nma module available')
             self.stop()
 
     def parseConfiguration(self):
         super(NMA, self).parseConfiguration()
         if len(self.aNmaByGroup) is 0:
-            self.oLogger.info('No nma to warn, stopping')
+            self.oLogger.info('No nma to warn')
             self.stop()
             exit(0)
 
