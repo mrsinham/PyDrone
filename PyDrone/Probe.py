@@ -4,6 +4,7 @@ import json
 from time import time
 import datetime
 import logging
+import base64
 
 ############# Probe #################
 class Probe:
@@ -23,6 +24,8 @@ class Probe:
         self.lastEnv = []
         self.running = False
         self.emailsToWarn = []
+        self.login = None
+        self.password = None
 
     def __str__(self):
         aDict = {
@@ -73,7 +76,6 @@ class ProbeBuilder:
                 aProbes[sKey] = []
             assert isinstance(sProbeName, str)
             assert isinstance(oEachProbe['url'], str)
-            assert isinstance(oEachProbe['executionTimeout'], int)
             assert isinstance(oEachProbe['checkEvery'], float)
             assert isinstance(oEachProbe['servers'], list)
 
@@ -82,9 +84,14 @@ class ProbeBuilder:
                 oProbe.id = self.iCurrentId
                 oProbe.name = sProbeName
                 oProbe.url = oEachProbe['url']
-                if 'timeout' in oEachProbe.keys():
+                aProbeKeys = oEachProbe.keys()
+                if 'timeout' in aProbeKeys:
                     oProbe.timeout = oEachProbe['timeout']
-                oProbe.executionTimeout = oEachProbe['executionTimeout']
+                if 'login' in aProbeKeys:
+                    oProbe.login = oEachProbe['login']
+                if 'password' in aProbeKeys:
+                    oProbe.password = oEachProbe['password']
+
                 oProbe.checkEvery = oEachProbe['checkEvery']
                 oProbe.server = sEachServer
                 aProbes[sKey].append(oProbe)
@@ -102,9 +109,12 @@ class ProbeMonitor:
         oProbe.running = True
         # We have a probe now we build the url to call
         oUrl = urlparse(oProbe.url)
-        oUrlDict = oUrl._asdict()
         sNewUrl = urlunparse((oUrl.scheme, oProbe.server, oUrl.path, '', oUrl.query, oUrl.fragment))
+
         oNewHttpRequest = urllib2.Request(sNewUrl, None, {'Host': oUrl.netloc})
+        if oProbe.login is not None and oProbe.password is not None:
+            base64string = base64.encodestring('%s:%s' % (oProbe.login, oProbe.password)).replace('\n', '')
+            oNewHttpRequest.add_header("Authorization", "Basic %s" % base64string)
         iPreviousCode = oProbe.lastCode
         try:
             if oProbe.timeout is not None:
@@ -132,7 +142,7 @@ class ProbeMonitor:
             'checking ' + oProbe.server + ' from group : ' + oProbe.name + ' and got ' + str(oProbe.lastCode))
         if iPreviousCode is not None and oProbe.lastCode != iPreviousCode:
             # push probe to the event handler
-            self.oLogger.warning('['+oProbe.name+'] '+oProbe.server + ' change of code from ' + str(iPreviousCode) + ' to ' + str(oProbe.lastCode))
+            self.oLogger.info('['+oProbe.name+'] '+oProbe.server + ' change of code from ' + str(iPreviousCode) + ' to ' + str(oProbe.lastCode))
             self.oProbeEvent.pushProbeEvent(oProbe)
 
 
