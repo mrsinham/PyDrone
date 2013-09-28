@@ -102,7 +102,7 @@ class ProbeBuilder:
 class ProbeMonitor:
     def __init__(self, oProbeEvent):
         self.oProbeEvent = oProbeEvent
-        self.oLogger = logging.getLogger('pydrone').getChild('probe').getChild('monitor')
+        self.oLogger = logging.getLogger('pydrone.probe.monitor')
 
     def sendProbe(self, oProbe):
         assert isinstance(oProbe, Probe)

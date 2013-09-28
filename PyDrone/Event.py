@@ -5,7 +5,7 @@ class ProbeEvent:
 
     def __init__(self):
         self.aListener = set()
-        self.oLogger = logging.getLogger('pydrone').getChild('probe').getChild('event')
+        self.oLogger = logging.getLogger('pydrone.probe.event')
 
     def addListener(self, oListener):
         self.aListener.add(oListener)

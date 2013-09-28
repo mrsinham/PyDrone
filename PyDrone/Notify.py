@@ -3,7 +3,6 @@ import threading
 import logging
 import smtplib
 from email.mime.text import MIMEText
-from pprint import pprint
 import socket
 import json
 
@@ -15,7 +14,7 @@ class BufferNotifier(threading.Thread):
         self.aProbeUpdate = {}
         self.aConfiguration = aConfiguration
         self.sendEvery = 2
-        self.oLogger = logging.getLogger('pydrone').getChild('notify')
+        self.oLogger = logging.getLogger('pydrone.notify')
 
         self._stopevent = threading.Event()
 
@@ -101,7 +100,7 @@ class Mail(BufferNotifier):
         self.bSmtpUseSsl = False
         self.aToEmailPerGroup = {}
         self.sBaseUrl = None
-        self.oLogger = self.oLogger.getChild('mail')
+        self.oLogger = logging.getLogger('pydrone.notify.mail')
 
     def run(self):
         super(Mail, self).run()
@@ -180,7 +179,6 @@ class Mail(BufferNotifier):
         aMessage = MIMEText(sBody)
         aMessage['Subject'] = sSubject
         aMessage['From'] = self.sFromEmailAddress
-        #aMessage['To'] = aEmail
         sSmtpUrl = self.sSmtpHost + ':' + str(self.iSmtpPort)
         oSender = smtplib.SMTP(sSmtpUrl)
         if self.bSmtpUseSsl:
@@ -202,7 +200,7 @@ class NMA(BufferNotifier):
     def __init__(self, aConfiguration):
         super(NMA, self).__init__(aConfiguration)
         self.aNmaByGroup = {}
-        self.oLogger = self.oLogger.getChild('nma')
+        self.oLogger = logging.getLogger('pydrone.notify.nma')
 
     def run(self):
         try:
@@ -239,11 +237,3 @@ class NMA(BufferNotifier):
         import pynma
         oNma = pynma.PyNMA(aNmaToWarn)
         oNma.push(sApplication, sEvent, sMessage)
-
-
-
-
-
-
-
-
