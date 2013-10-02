@@ -1,5 +1,5 @@
 import argparse, logging, os, yaml
-from PyDrone.Probe import Probe, ProbeBuilder,ProbeMonitor
+from PyDrone.Probe import Probe, ProbeBuilder, ProbeMonitor
 from PyDrone.Web import WebLauncher
 from PyDrone.Event import ProbeEvent
 from PyDrone.Monitor import Scheduler
@@ -16,11 +16,14 @@ class PyDrone:
         self.aListOfProbes = None
         self.oProbeEvent = ProbeEvent()
         self.aThreads = []
+        self.oScheduler = None
+        self.oLogger = None
 
 
     def __parseCmdLine(self, sLoggingFormat):
         """
         Parsing the input the program
+        @param sLoggingFormat: A string with the right format for logging
         """
         oParser = argparse.ArgumentParser(description='Python drone : monitor your applications')
         oParser.add_argument('--conf', help='Configuraton file path')
@@ -51,7 +54,7 @@ class PyDrone:
                 self.oLogger.addHandler(oFileHandler)
 
             sConfigurationFile = oArguments.conf
-            self.oLogger.debug('reading configuration file '+os.getcwd() + '/'+ sConfigurationFile)
+            self.oLogger.debug('reading configuration file ' + os.getcwd() + '/' + sConfigurationFile)
             return sConfigurationFile
 
     def __startWebServer(self):
@@ -97,6 +100,7 @@ class PyDrone:
             self.oLogger.info('shutdown..')
             for oThread in self.aThreads:
                 oThread.stop()
+
 
 __author__ = 'Julien Lefevre'
 
